@@ -1,7 +1,21 @@
+## Usage
+
+![PythonVersion](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)
+![License](https://img.shields.io/badge/License-CeCILLB-blue.svg)
+![PoweredBy](https://img.shields.io/badge/Powered%20by-CEA%2FNeuroSpin-blue.svg)
+
+## Development
+
 ![Pep8](https://github.com/neurospin-projects/2022_cambroise_mmbench/actions/workflows/pep8.yml/badge.svg)
+![Doc](https://github.com/neurospin-projects/2022_cambroise_mmbench/actions/workflows/documentation.yml/badge.svg)
+![ExtraDoc](https://readthedocs.org/projects/mmbench/badge/?version=latest)
+
+## Release
+
+![PyPi](https://badge.fury.io/py/mmbench.svg)
 
 
-# Benchmark Multu-Modal/Multi-View Models 
+# Benchmark Multi-Modal/Multi-View Models 
 
 \:+1: If you are using the code please add a star to the repository :+1:
 
@@ -13,7 +27,23 @@ different data types. Further, the understanding of different modalities and
 the interplay between data types are non-trivial research questions and
 long-standing goals in machine learning research.
 
+Objective: studying how views information are disentanled by the models.
+
+You can list all available workflows by running the following command in a
+command prompt:
+
+```
+limri --help
+```
+
 If you have any question about the code or the paper, we are happy to help!
+
+## Important links
+
+* [Official source code repo.](https://github.com/neurospin-projects/2022_cambroise_mmbench)
+* HTML documentation (stable release): WIP.
+* [HTML documentation (latest release).](https://readthedocs.org/projects/mmbench)
+* [Release notes.](https://github.com/neurospin-projects/2022_cambroise_mmbench/blob/master/CHANGELOG.rst)
 
 ## References
 
@@ -49,14 +79,13 @@ If you have any question about the code or the paper, we are happy to help!
   
 ```
 
-
-## Preliminaries
+## Where to start
 
 This code was developed and tested with:
 - Python version 3.5.6
 - PyTorch version 1.4.0
 - CUDA version 11.0
-- The environment defined in `environment.txt`
+- The environment defined in `environments.txt`
 
 First, install the requirements in your own environment. 
 
@@ -84,6 +113,11 @@ Each data folder must contains at least 5 files:
   be good to have `asd` containing the 1-2 encoded diagnosis values (for the
   histogram).
 
+Then start by:
+
+* [browsing available examples.](https://mmbench.readthedocs.io/en/latest/auto_gallery/index.html)
+* [looking at the list of available workflows.](https://mmbench.readthedocs.io/en/latest/generated/mmbench.workflow.html)
+* [searching in the module API documentation.](https://mmbench.readthedocs.io/en/latest/generated/documentation.html)
 
 ## Experiments
 
@@ -105,6 +139,19 @@ representations.
 mmbench bench-rsa --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
 ```
 
+## Contributing
+
+If you want to contribute to `mmbench`, be sure to review the [contribution guidelines](./CONTRIBUTING.rst).
+
 ## Citation
 
-There is no paper published yet about this project.
+There is no paper published yet about `mmbench`.
+We suggest that you aknowledge the brainprep team or reference to the code
+repository: |link-to-paper|.
+
+```
+Grigis, A. et al. (2023) MMBench source code (Version 0.01) [Source code]
+https://github.com/neurospin-projects/2022_cambroise_mmbench.
+```
+
+Thank you.

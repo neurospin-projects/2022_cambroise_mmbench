@@ -1,3 +1,6 @@
+Jinja2<3.1
+git+https://github.com/AGrigis/pysphinxdoc.git
+ipython
 numpy
 pandas
 scipy
@@ -10,3 +13,4 @@ torch
 torchvision
 git+https://github.com/neurospin-deepinsight/brainite.git
 git+https://github.com/neurospin-deepinsight/mopoe.git
+sphinx==3.5.4
