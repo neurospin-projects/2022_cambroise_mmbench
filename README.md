@@ -33,7 +33,7 @@ You can list all available workflows by running the following command in a
 command prompt:
 
 ```
-limri --help
+mmbench --help
 ```
 
 If you have any question about the code or the paper, we are happy to help!
@@ -181,3 +181,13 @@ https://github.com/neurospin-projects/2022_cambroise_mmbench.
 ```
 
 Thank you.
+
+## ToDo
+
+* Implement the `mmbench.workflow.predict.benchmark_pred_exp` function: compare
+latent represenetations by performing regressions or classifications with ML
+on learned latent variables.
+* Implement ML baselines `mmbench.baseline`: canonical correlation
+analysis (CCA) `sklearn.cross_decomposition.CCA`, and orthogonal projections
+to latent structures in multiblock and path model data analysis (OnPLS)
+`https://github.com/tomlof/OnPLS`.
