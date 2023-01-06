@@ -72,7 +72,7 @@ REQUIRES = [
     "matplotlib",
     "seaborn",
     "tqdm",
-    "sklearn",
+    "scikit-learn",
     "fire",
     "torch",
     "torchvision",
