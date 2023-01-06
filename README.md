@@ -147,7 +147,7 @@ If you want to contribute to `mmbench`, be sure to review the [contribution guid
 
 There is no paper published yet about `mmbench`.
 We suggest that you aknowledge the brainprep team or reference to the code
-repository: |link-to-paper|.
+repository:
 
 ```
 Grigis, A. et al. (2023) MMBench source code (Version 0.01) [Source code]

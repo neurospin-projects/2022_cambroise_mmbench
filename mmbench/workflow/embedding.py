@@ -36,8 +36,8 @@ def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
     outdir: str
         the destination folder.
     run: str
-        the name of the experiment in the destination folder:
-        `<dataset>_<timestamp>'.
+        the name of the experiment in the destination folder
+        `<dataset>_<timestamp>`.
     smcvae_checkpointfile: str
         the path to the sMCVAE model weights.
     mopoe_checkpointfile: str
@@ -45,8 +45,8 @@ def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
     smcvae_kwargs: dict, default None
         optionally give extra parameters to construct the model.
 
-    Note
-    ----
+    Notes
+    -----
     We need to extend this procedure to CV models.
     """
     print_title(f"GET MODELS LATENT VARIABLES: {dataset}")
