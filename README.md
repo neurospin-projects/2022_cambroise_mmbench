@@ -121,6 +121,25 @@ Then start by:
 
 ## Experiments
 
+### Train MoPoE
+
+To choose between running the MVAE, MMVAE, and MoPoE-VAE, one needs to
+change the script's `--method` variabe to `poe`, `moe`, or `joint_elbo`
+respectively. By default, `joint_elbo` is selected.
+Perform training on EUAIMS by running the following commands in a shell:
+
+```
+export DATASETDIR=/path/to/my/dataset
+export OUTDIR=/path/to/the/output/directory
+
+mmbench train-mopoe --dataset euaims --datasetdir $DATASETDIR --outdir $OUTDIR
+--latent_dim 20 --input_dims 7,444 --beta 5 --batch_size 256
+--likelihood normal --initial_learning_rate 0.002 --n_epochs 50
+--learn_output_scale --allow_missing_blocks
+```
+
+### Embeddings
+
 First generate samples using a mmbench sub-command. It will generate a file
 named 'latent_vecs.npz' with all samples (n_samples, n_subjects, latent_dim).
 All samples must have the same number of samples and subjects, but possibly
@@ -129,14 +148,21 @@ In the following example we compare the MoPoe and sMCVE multi-views deep
 learning models.
 
 ```
-mmbench bench-latent --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR --smcvae_checkpointfile $WEIGHT1 --mopoe_checkpointfile $WEIGHT2 --smcvae_kwargs '{"latent_dim":10,"vae_model":"dense","noise_init_logvar":-3,"noise_fixed":False}'
+export WEIGHT1=/path/to/my/smcvae/weights
+export WEIGHT2=/path/to/my/mopoe/weights
+
+mmbench latent --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR 
+-smcvae_checkpointfile $WEIGHT1 --mopoe_checkpointfile $WEIGHT2
+--smcvae_kwargs '{"latent_dim":10,"vae_model":"dense","noise_init_logvar":-3,"noise_fixed":False}'
 ```
 
-Then perform a Representational Similarity Analysis (RSA) to compare latent
+### RSA
+
+Perform a Representational Similarity Analysis (RSA) to compare latent
 representations.
 
 ```
-mmbench bench-rsa --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
+mmbench rsa --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
 ```
 
 ## Contributing

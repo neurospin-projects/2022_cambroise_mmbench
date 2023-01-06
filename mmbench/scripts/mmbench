@@ -14,10 +14,13 @@ Organize the analysis steps.
 
 # System import
 import fire
-import mmbench.workflow as wf
+import mmbench.workflow as wf1
+import mopoe.workflow as wf2
 
 
 fire.Fire({
-    "bench-latent": wf.benchmark_latent_exp,
-    "bench-rsa": wf.benchmark_rsa_exp
+    "train-mopoe": wf2.train_exp,
+    "latent": wf1.benchmark_latent_exp,
+    "rsa": wf1.benchmark_rsa_exp,
+    "pred": wf1.benchmark_pred_exp
 })
