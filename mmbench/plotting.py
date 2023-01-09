@@ -212,17 +212,4 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
             annotator.set_custom_annotations(annotations)
             annotator.annotate()
 
-        if 0:
-            for comp_idx, this_comp in enumerate(comps):
-                sig_idx = max(np.nonzero(
-                    pairwise_p[this_comp[0], this_comp[1]] <
-                    pairwise_sample_thresh)[0])
-                max_y = new_y[-1] + comp_idx * .005
-                xs = np.array(this_comp)
-                print(xs, max_y)
-                stars = pairwise_sample_stars[sig_idx]
-                plt.plot(xs, [max_y, max_y], "k", linewidth=line_width)
-                plt.text(xs.mean(), max_y, stars, fontsize=fontsize_star,
-                         horizontalalignment="center", fontweight=fontweight)
-
     return pairwise_stat_df

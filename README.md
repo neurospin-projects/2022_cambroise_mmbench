@@ -187,6 +187,8 @@ Thank you.
 * Implement the `mmbench.workflow.predict.benchmark_pred_exp` function: compare
 latent represenetations by performing regressions or classifications with ML
 on learned latent variables.
+* Deal with multiple trained models in
+`mmbench.workflow.embedding.benchmark_latent_exp`.
 * Implement ML baselines `mmbench.baseline`: canonical correlation
 analysis (CCA) `sklearn.cross_decomposition.CCA`, and orthogonal projections
 to latent structures in multiblock and path model data analysis (OnPLS)

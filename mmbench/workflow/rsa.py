@@ -20,6 +20,8 @@ from mmbench.stat_utils import data2mat, vec2mat, fit_rsa
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result,
     print_error)
+import matplotlib.pyplot as plt
+from mmbench.plotting import plot_mat, plot_bar
 
 
 def benchmark_rsa_exp(dataset, datasetdir, outdir):
@@ -43,9 +45,6 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     same number of samples and subjects, but possibly different latent
     dimensions.
     """
-    import matplotlib.pyplot as plt
-    from plotting import plot_mat, plot_bar
-
     print_title(f"COMPARE MODELS USING RSA ANALYSIS: {dataset}")
     benchdir = outdir
     print_text(f"Benchmark directory: {benchdir}")

@@ -13,17 +13,18 @@ Define the workflows to generate embeddigns.
 
 # Imports
 import os
+from pprint import pprint
 import numpy as np
 import pandas as pd
 import torch
+from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data
 from mmbench.model import get_mopoe, get_smcvae, eval_mopoe, eval_smcvae
 
 
-def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
-                         mopoe_checkpointfile, smcvae_kwargs=None):
+def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     """ Retrieve the learned latent space of different models using a
     10 samplings scheme.
 
@@ -33,17 +34,10 @@ def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
         the dataset name: euaims or hbn.
     datasetdir: str
         the path to the dataset associated data.
+    configfile: str
+        the path to the config file descibing the different models to compare.
     outdir: str
         the destination folder.
-    run: str
-        the name of the experiment in the destination folder
-        `<dataset>_<timestamp>`.
-    smcvae_checkpointfile: str
-        the path to the sMCVAE model weights.
-    mopoe_checkpointfile: str
-        the path to the MOPOE model weights.
-    smcvae_kwargs: dict, default None
-        optionally give extra parameters to construct the model.
 
     Notes
     -----
@@ -54,7 +48,6 @@ def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
-    smcvae_kwargs = smcvae_kwargs or {}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print_subtitle("Loading data...")
@@ -69,32 +62,39 @@ def benchmark_latent_exp(dataset, datasetdir, outdir, smcvae_checkpointfile,
     meta_df.to_csv(meta_file, sep="\t", index=False)
     print_result(f"metadata: {meta_file}")
 
+    print_subtitle("Parsing config...")
+    parser = ConfigParser("latent-config", configfile)
+    pprint(parser.config.models)
+
     print_subtitle("Loading models...")
     models = {}
-    # > MoPoe
-    models["MoPoe"] = (get_mopoe(mopoe_checkpointfile), eval_mopoe,
-                       {"modalities": modalities})
-    # > sMCVAE
-    n_channels = len(modalities)
-    n_feats = [data[mod].shape[1] for mod in modalities[::-1]]
-    models["sMCVAE"] = (
-        get_smcvae(smcvae_checkpointfile, n_channels, n_feats,
-                   **smcvae_kwargs),
-        eval_smcvae, {"modalities": modalities[::-1]})
+    default_params = {
+        "n_channels": len(modalities),
+        "n_feats": [data[mod].shape[1] for mod in modalities],
+        "modalities": modalities}
+    for name, params in parser.config.models.items():
+        # ToDo: remove tmp hack
+        _default_params = default_params.copy()
+        if name == "sMCVAE":
+            _default_params["n_feats"] = default_params["n_feats"][::-1]
+            _default_params["modalities"] = default_params["modalities"][::-1]
+        model = params["get"](
+            **parser.set_auto_params(params["get_kwargs"], _default_params))
+        eval_kwargs = parser.set_auto_params(
+            params["eval_kwargs"], _default_params)
+        models[name] = (model, params["eval"], eval_kwargs)
     for name, (model, _, _) in models.items():
         print_text(f"model: {name}")
         print(model)
 
     print_subtitle("Evaluate models...")
     results = {}
-    n_samples = 10
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
         model = model.to(device)
         model.eval()
         with torch.set_grad_enabled(False):
-            embeddings = eval_fct(model, data, n_samples=n_samples,
-                                  **kwargs_fct)
+            embeddings = eval_fct(model, data, **kwargs_fct)
             for key, val in embeddings.items():
                 key = _sanitize(key)
                 results[f"{key}_{dataset}"] = val
