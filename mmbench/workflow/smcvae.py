@@ -20,9 +20,6 @@ import progressbar
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset
-from brainboard import Board
-from brainite.models import MCVAE
-from brainite.losses import MCVAELoss
 from mmbench.dataset import get_train_data, get_test_data
 from mmbench.color_utils import print_title
 
@@ -53,6 +50,10 @@ def train_smcvae(dataset, datasetdir, outdir, fit_lat_dims=10, beta=1,
     port: int, default 8085
         the port on which the visdom server is launched.
     """
+    from brainboard import Board
+    from brainite.models import MCVAE
+    from brainite.losses import MCVAELoss
+
     print_title("Load dataset...")
     modalities = ["clinical", "rois"]
     X_train, _ = get_train_data(dataset, datasetdir, modalities)
