@@ -47,37 +47,21 @@ If you have any question about the code or the paper, we are happy to help!
 
 ## References
 
-```
-@inproceedings{antelmi2019,
-    title   = "Sparse Multi-Channel Variational Autoencoder for the Joint
-               Analysis of Heterogeneous Data", 
-    author  = "Antelmi, Luigi and Ayache, Nicholas and Robert, Philippe and
-               Lorenzi, Marco",
-    booktitle = "Proceedings of the 36th International Conference on 
-                 Machine Learning",
-    pages   = "302-311",
-    year    = 2019
-}
+### Models
 
-@misc{sutter2021,
-    title   = "Generalized Multimodal ELBO",
-    author  = "Sutter, Thomas M. and Daunhawer, Imant and Vogt, Julia E.",
-    publisher = "arXiv",
-    year    = 2021
-}
+* Antelmi, L., Ayache, N., Robert, P., Lorenzi, M. (2019). Sparse Multi-Channel Variational Autoencoder for the Joint Analysis of Heterogeneous Data. Proceedings of the 36th International Conference on Machine Learning, in Proceedings of Machine Learning Research 97:302-311.
+* Sutter, T. M. and Daunhawer, I. and Vogt, J. E. (2021). Generalized Multimodal ELBO. arXiv.
+* Löfstedt, T. (2012). OnPLS: orthogonal projections to latent structures in multiblock and path model data analysis. Thesis.
+* Tenenhaus, A., Philippe, C., Guillemot, V., Le Cao, K. A., Grill J., Frouin V. (2014). Variable selection for generalized canonical correlation analysis.  Biostatistics 15(3):569-83.
 
-@article{aglinskas2022,
-  title    = "Contrastive machine learning reveals the structure of
-              neuroanatomical variation within autism",
-  author   = "Aglinskas, Aidas and Hartshorne, Joshua K and Anzellotti, Stefano",
-  journal  = "Science",
-  volume   =  376,
-  number   =  6597,
-  pages    = "1070-1074",
-  year     =  2022
-}
-  
-```
+### RSA
+
+* Aglinskas, A., Hartshorne J. K., Anzellotti, S. (2022). Contrastive machine learning reveals the structure of
+neuroanatomical variation within autism. Science 376(6597):1070-1074.
+
+### Transfer learning
+
+* Neyshabur, B., Sedghi, H., Zhang, C., (2020). What is being transferred in transfer learning? arXiv.
 
 ## Where to start
 
@@ -126,16 +110,41 @@ Then start by:
 To choose between running the MVAE, MMVAE, and MoPoE-VAE, one needs to
 change the script's `--method` variabe to `poe`, `moe`, or `joint_elbo`
 respectively. By default, `joint_elbo` is selected.
+
+Perform training on HBN by running the following commands in a shell:
+
+```
+mmbench train-mopoe --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
+--latent_dim 20 --input_dims 7,444 --style_dim 3,20 --beta 5 --batch_size 256
+--likelihood normal --initial_learning_rate 0.002 --n_epochs 50
+--allow_missing_blocks
+```
+
 Perform training on EUAIMS by running the following commands in a shell:
 
 ```
-export DATASETDIR=/path/to/my/dataset
-export OUTDIR=/path/to/the/output/directory
-
 mmbench train-mopoe --dataset euaims --datasetdir $DATASETDIR --outdir $OUTDIR
---latent_dim 20 --input_dims 7,444 --beta 5 --batch_size 256
+--latent_dim 20 --input_dims 7,444 --style_dim 3,20 --beta 5 --batch_size 256
 --likelihood normal --initial_learning_rate 0.002 --n_epochs 50
---learn_output_scale --allow_missing_blocks
+--allow_missing_blocks
+```
+
+### Train sMCVAE
+
+Perform training on HBN by running the following commands in a shell:
+
+```
+mmbench train-smcvae --dataset hbn --datasetdir $DATASETDIR --outdir  $OUTDIR
+--fit-lat-dims 10 --beta 0.5 --adam_lr 0.002 --n-epochs 10000
+--host $HOST
+```
+
+Perform training on EUAIMS by running the following commands in a shell:
+
+```
+mmbench train-smcvae --dataset euaims --datasetdir $DATASETDIR --outdir  $OUTDIR
+--fit-lat-dims 10 --beta 1. --adam_lr 0.002 --n-epochs 10000
+--host $HOST
 ```
 
 ### Embeddings
@@ -145,15 +154,11 @@ named 'latent_vecs.npz' with all samples (n_samples, n_subjects, latent_dim).
 All samples must have the same number of samples and subjects, but possibly
 different latent dimensions.
 In the following example we compare the MoPoe and sMCVE multi-views deep
-learning models.
+learning models on HBN.
 
 ```
-export WEIGHT1=/path/to/my/smcvae/weights
-export WEIGHT2=/path/to/my/mopoe/weights
-
 mmbench latent --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR 
--smcvae_checkpointfile $WEIGHT1 --mopoe_checkpointfile $WEIGHT2
---smcvae_kwargs '{"latent_dim":10,"vae_model":"dense","noise_init_logvar":-3,"noise_fixed":False}'
+--config-file $CONFIGFILE
 ```
 
 ### RSA

@@ -11,6 +11,7 @@
 Definition of the workflows.
 """
 
+from .smcvae import train_smcvae
 from .embedding import benchmark_latent_exp
 from .rsa import benchmark_rsa_exp
 from .predict import benchmark_pred_exp

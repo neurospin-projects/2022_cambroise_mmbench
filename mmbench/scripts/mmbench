@@ -20,6 +20,7 @@ import mopoe.workflow as wf2
 
 fire.Fire({
     "train-mopoe": wf2.train_exp,
+    "train-smcvae": wf1.train_smcvae,
     "latent": wf1.benchmark_latent_exp,
     "rsa": wf1.benchmark_rsa_exp,
     "pred": wf1.benchmark_pred_exp

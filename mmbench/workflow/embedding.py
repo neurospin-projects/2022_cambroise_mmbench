@@ -26,7 +26,7 @@ from mmbench.model import get_mopoe, get_smcvae, eval_mopoe, eval_smcvae
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     """ Retrieve the learned latent space of different models using a
-    10 samplings scheme.
+    N samplings scheme.
 
     Parameters
     ----------
@@ -36,6 +36,13 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
         the path to the dataset associated data.
     configfile: str
         the path to the config file descibing the different models to compare.
+        This configuration file is a Python (*.py) file with a dictionary
+        named '_models' containing the different model settings. Keys of this
+        dictionary are the model names, each beeing described with a model
+        getter function 'get' and associated kwargs 'get_kwargs', as weel as
+        an evaluation function 'eval' and associated kwargs 'eval_kwargs'.
+        The getter and evaluation functions are defined in the 'mmbench.model'
+        module.
     outdir: str
         the destination folder.
 
@@ -73,15 +80,10 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
         "n_feats": [data[mod].shape[1] for mod in modalities],
         "modalities": modalities}
     for name, params in parser.config.models.items():
-        # ToDo: remove tmp hack
-        _default_params = default_params.copy()
-        if name == "sMCVAE":
-            _default_params["n_feats"] = default_params["n_feats"][::-1]
-            _default_params["modalities"] = default_params["modalities"][::-1]
         model = params["get"](
-            **parser.set_auto_params(params["get_kwargs"], _default_params))
+            **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
-            params["eval_kwargs"], _default_params)
+            params["eval_kwargs"], default_params)
         models[name] = (model, params["eval"], eval_kwargs)
     for name, (model, _, _) in models.items():
         print_text(f"model: {name}")
@@ -98,7 +100,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
             for key, val in embeddings.items():
                 key = _sanitize(key)
                 results[f"{key}_{dataset}"] = val
-    features_file = os.path.join(benchdir, "latent_vecs.npz")
+    features_file = os.path.join(benchdir, f"latent_vecs_{dataset}.npz")
     np.savez_compressed(features_file, **results)
     print_result(f"features: {features_file}")
 

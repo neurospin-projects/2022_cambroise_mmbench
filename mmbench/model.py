@@ -68,7 +68,7 @@ def eval_mopoe(model, data, modalities, n_samples=10):
     """
     embeddings = {}
     inf_data = model.inference(data)
-    latents = [inf_data["subsets"][mod] for mod in modalities]
+    latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     for idx, name in enumerate(modalities + ["joint"]):
         z_mu, z_logvar = latents[idx]

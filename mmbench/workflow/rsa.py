@@ -50,7 +50,7 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     print_text(f"Benchmark directory: {benchdir}")
 
     print_subtitle("Loading data...")
-    latent_data = np.load(os.path.join(benchdir, "latent_vecs.npz"))
+    latent_data = np.load(os.path.join(benchdir, f"latent_vecs_{dataset}.npz"))
     smats, shape = {}, None
     for key in latent_data.keys():
         samples = latent_data[key]
