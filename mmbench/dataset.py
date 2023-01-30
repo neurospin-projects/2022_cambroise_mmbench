@@ -18,6 +18,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torchvision import transforms
 import torch
+from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
@@ -150,3 +151,94 @@ def unsqueeze_0(x):
     """ Returns a new tensor with a dimension of size one at dimension 0.
     """
     return x.unsqueeze(0)
+
+
+class EUAIMSContrastiveDataset(Dataset):
+    """ Create the EUAIMS contrastive dataset.
+    """
+    def __init__(self, datasetdir, train=True, transform=None,
+                 flatten=False, seed=None, scaler=None):
+        """ Init class.
+
+        Parameters
+        ----------
+        datasetdir: str
+            the path to the dataset associated data.
+        train: bool, default True
+            specifies training or test dataset.
+        transform: callable, default None
+            optional transform to be applied on a sample.
+        flatten: bool, default False
+            optionally select all subjects.
+        seed: int, default None
+            for reproducibility fix a seed.
+        scaler: sklearn-like scaler, default None
+            optionally set a fitted scaler.
+        """
+        if seed is not None:
+            raise NotImplementedError("Setting a seed is not supported yet.")
+
+        split = "train" if train else "test"
+        meta_split_file = os.path.join(datasetdir, f"metadata_{split}.tsv")
+        df = pd.read_csv(meta_split_file, sep="\t")
+        subjects = df["participant_id"].values
+        roi_file = os.path.join(datasetdir, "rois_data.npy")
+        data = np.load(roi_file)
+        all_subjects = np.load(roi_file.replace("_data.npy", "_subjects.npy"))
+        indices = np.nonzero(np.in1d(all_subjects, subjects))[0]
+        print(data.shape, len(subjects), len(indices))
+        data = data[indices]
+        self.scaler = scaler or StandardScaler()
+        if scaler is None:
+            self.scaler.fit(data)
+        data = self.scaler.transform(data)
+        subjects = all_subjects[indices]
+        df = df[df["participant_id"].isin(subjects)]
+        self.flatten = flatten
+        self.transform = transform
+        self.data = np.expand_dims(data, axis=1)
+        self.subjects = subjects
+        self.n_subjects = len(self.data)
+        self.df = df
+        print(f"EUAIMS data: {self.data.shape}")
+        print(f"EUAIMS data dynamic: {self.data.min()} - {self.data.max()}")
+        print(f"EUAIMS subjects: {self.subjects.shape}")
+        print(f"EUAIMS metadata: {self.df.shape}")
+        print(self.df)
+
+        self.controls_indices = (df["asd"].values == 1)
+        self.controls = self.data[self.controls_indices]
+        self.patients_indices = (df["asd"].values == 2)
+        self.patients = self.data[self.patients_indices]
+        print(f"EUAIMS controls: {self.controls.shape}")
+        print(f"EUAIMS patients: {self.patients.shape}")
+        if self.flatten:
+            self.n_samples = len(self.controls) + len(self.patients)
+        else:
+            self.n_samples = min(len(self.controls), len(self.patients))
+            self.reset_mapping()
+
+    def reset_mapping(self):
+        """ Reset the controls <-> patients mapping.
+        """
+        self.controls_mapping = np.random.choice(
+            len(self.controls), self.n_samples, replace=False)
+        self.patients_mapping = np.random.choice(
+            len(self.patients), self.n_samples, replace=False)
+
+    def __len__(self):
+        return self.n_samples
+
+    def __getitem__(self, idx):
+        if self.flatten:
+            image1 = self.data[idx]
+            image2 = np.zeros((0, ))
+        else:
+            pidx = self.patients_mapping[idx]
+            cidx = self.controls_mapping[idx]
+            image1 = self.patients[pidx]
+            image2 = self.controls[cidx]
+        if self.transform is not None:
+            image1 = self.transform(image1)
+            image2 = self.transform(image2)
+        return image1.astype(np.single), image2.astype(np.single)
