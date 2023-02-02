@@ -36,7 +36,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
         the path to the dataset associated data.
     configfile: str
         the path to the config file descibing the different models to compare.
-        This configuration file is a Python (*.py) file with a dictionary
+        This configuration file is a Python (\*.py) file with a dictionary
         named '_models' containing the different model settings. Keys of this
         dictionary are the model names, each beeing described with a model
         getter function 'get' and associated kwargs 'get_kwargs', as weel as

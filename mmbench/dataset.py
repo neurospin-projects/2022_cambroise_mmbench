@@ -188,11 +188,11 @@ class EUAIMSDataset(ContrastiveDataset):
 
         Returns
         -------
-        background: array (N, n_channels, *)
+        background: array (N, n_channels, \*)
             the background data.
         background_labels: array (N, )
             the background labels.
-        target: array (M, n_channels, *)
+        target: array (M, n_channels, \*)
             the target data.
         target_labels: array (M, )
             the target labels.

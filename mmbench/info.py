@@ -54,7 +54,7 @@ EXTRAURL = (
     "https://joliot.cea.fr/drf/joliot/Pages/Entites_de_recherche/"
     "NeuroSpin.aspx")
 LINKS = {"projects": "https://github.com/neurospin-projects"}
-URL = "https://github.com/rlink7/rlink_7limri"
+URL = "https://github.com/neurospin-projects/2022_cambroise_mmbench"
 DOWNLOAD_URL = "https://github.com/neurospin-projects/2022_cambroise_mmbench"
 LICENSE = "CeCILL-B"
 AUTHOR = """
@@ -79,6 +79,8 @@ REQUIRES = [
     "torchvision",
     ("brainite @ "
      "git+https://github.com/neurospin-deepinsight/brainite.git#egg=brainite"),
+    ("cvae @ "
+     "git+https://github.com/neurospin-projects/cvae.git#egg=cvae"),
     ("mopoe @ "
      "git+https://github.com/neurospin-deepinsight/mopoe.git#egg=mopoe")
 ]
