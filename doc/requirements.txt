@@ -14,5 +14,6 @@ torch
 torchvision
 git+https://github.com/neurospin-deepinsight/brainite.git
 git+https://github.com/neurospin-deepinsight/mopoe.git
+git+https://github.com/neurospin-projects/2022_cgomez_cvae.git
 git+https://github.com/neurospin-projects/2022_cambroise_mmbench.git
 sphinx==3.5.4
