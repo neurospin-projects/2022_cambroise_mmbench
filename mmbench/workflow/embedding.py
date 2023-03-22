@@ -113,7 +113,8 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
                 key = _sanitize(key)
                 results_tr[f"{key}_{dataset}"] = val
     features_file = os.path.join(benchdir, f"latent_vecs_{dataset}.npz")
-    features_file_tr = os.path.join(benchdir, f"latent_vecs_train_{dataset}.npz")
+    features_file_tr = os.path.join(benchdir,
+                                    f"latent_vecs_train_{dataset}.npz")
     np.savez_compressed(features_file, **results)
     np.savez_compressed(features_file_tr, **results_tr)
     print_result(f"features: {features_file}")

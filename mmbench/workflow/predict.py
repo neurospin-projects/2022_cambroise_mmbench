@@ -21,6 +21,7 @@ from mmbench.color_utils import (
     print_error)
 from mmbench.plotting import plot_bar
 
+
 def benchmark_pred_exp(dataset, datasetdir, outdir):
     """ Compare the learned latent space of different models using
     prediction analysis.
@@ -42,19 +43,19 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
     same number of samples and subjects, but possibly different latent
     dimensions.
     """
-    print_title(f"COMPARE MODELS USING REGRESSIONS "
-                "OR CLASSIFICATION WITH ML ANALYSIS: {dataset}")
+    print_title("COMPARE MODELS USING REGRESSIONS "
+                f"OR CLASSIFICATION WITH ML ANALYSIS: {dataset}")
     benchdir = outdir
     print_text(f"Benchmark directory: {benchdir}")
 
     print_subtitle("Loading data...")
-    
+
     latent_data = np.load(os.path.join(benchdir, f"latent_vecs_{dataset}.npz"))
     latent_data_tr = np.load(os.path.join(benchdir,
                                           f"latent_vecs_train_{dataset}.npz"))
     assert latent_data.keys() == latent_data_tr.keys(), (
-            "latent data must have the same keys")
-    shape, shape_samples = None, None
+        "latent data must have the same keys")
+    shape = None
     meta_df = pd.read_csv(
         os.path.join(benchdir, f"latent_meta_{dataset}.tsv"), sep="\t")
     meta_df_tr = pd.read_csv(
@@ -78,7 +79,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             "All samples must have the same number of subjects.")
         assert n_subjects_test == shape[3], (
             "All samples must have the same number of subjects for testing.")
-    res = [None]*n_samples
+    res = [None] * n_samples
     for qname in clinical_scores:
         y_tr = meta_df_tr[qname]
         y = meta_df[qname]
@@ -95,7 +96,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
                     res[i] = reg.score(samples_test[i], y)
             predict_records.setdefault(key, []).extend(res)
             predict_results.setdefault(qname, {})[key] = np.asarray(res)
-        predict_records.setdefault("score", []).extend([qname]* n_samples)
+        predict_records.setdefault("score", []).extend([qname] * n_samples)
     predict_df = pd.DataFrame.from_dict(predict_records)
     predict_df.to_csv(os.path.join(benchdir, "predict.tsv"), sep="\t",
                       index=False)
@@ -128,7 +129,6 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
 
 
 def detect_cla(data):
-    cla = False
     err = 0
     if isinstance(data[0], (str, int)):
         return True
