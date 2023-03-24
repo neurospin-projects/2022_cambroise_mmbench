@@ -118,6 +118,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     np.savez_compressed(features_file, **results)
     np.savez_compressed(features_file_tr, **results_tr)
     print_result(f"features: {features_file}")
+    print_result(f"train features: {features_file_tr}")
 
 
 def _sanitize(key):
