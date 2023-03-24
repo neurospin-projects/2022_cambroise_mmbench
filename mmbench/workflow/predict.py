@@ -88,7 +88,6 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
                 res.append(clf.score(samples_test[i], y))
             predict_records.setdefault(key, []).extend(res)
             predict_results.setdefault(qname, {})[key] = np.asarray(res)
-            predict_train.setdefault(qname, {})[key] = np.asarray(res_tr)
         predict_records.setdefault("score", []).extend([qname] * n_samples)
     predict_df = pd.DataFrame.from_dict(predict_records)
     predict_df.to_csv(os.path.join(benchdir, "predict.tsv"), sep="\t",
