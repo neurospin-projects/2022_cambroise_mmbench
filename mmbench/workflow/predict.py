@@ -65,7 +65,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
     assert (meta_df.columns == meta_df_tr.columns).all(), (
             "metadata must have the same columns.")
     clinical_scores = meta_df_tr.columns
-    predict_records, predict_results, predict_train = dict(), dict(), dict()
+    predict_records, predict_results = dict(), dict()
     for key in latent_data.keys():
         samples = latent_data_tr[key]
         samples_test = latent_data[key]
@@ -145,7 +145,7 @@ def detect_cla(data):
         if err == 0:
             cla = True
     if cla:
-            reg = linear_model.RidgeClassifier()
-            return reg
+        reg = linear_model.RidgeClassifier()
+        return reg
     reg = linear_model.Ridge(alpha=.5)
     return reg
