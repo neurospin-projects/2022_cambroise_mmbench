@@ -10,3 +10,5 @@
 """
 Definition of the ML baselines.
 """
+
+from .cca import benchmark_cca_exp

@@ -16,6 +16,7 @@ Organize the analysis steps.
 import fire
 import mmbench.workflow as wf1
 import mopoe.workflow as wf2
+import mmbench.baseline as bl1
 
 
 fire.Fire({
@@ -24,5 +25,6 @@ fire.Fire({
     "train-cvae": wf1.train_cvae,
     "latent": wf1.benchmark_latent_exp,
     "rsa": wf1.benchmark_rsa_exp,
-    "pred": wf1.benchmark_pred_exp
+    "pred": wf1.benchmark_pred_exp,
+    "cca":bl1.benchmark_cca_exp
 })
