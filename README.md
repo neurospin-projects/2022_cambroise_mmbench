@@ -158,7 +158,7 @@ learning models on HBN.
 
 ```
 mmbench latent --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR 
---config-file $CONFIGFILE
+--configfile $CONFIGFILE
 ```
 
 ### RSA
