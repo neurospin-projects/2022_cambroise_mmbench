@@ -14,11 +14,13 @@ Define the different models.
 # Imports
 import os
 import torch
+import numpy as np
 from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
 from mmbench.color_utils import print_text
+from joblib import load
 
 
 def get_mopoe(checkpointfile):
@@ -143,3 +145,55 @@ def eval_smcvae(model, data, modalities, n_samples=10):
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"sMCVAE_{name}"] = code
     return embeddings
+
+
+def get_pls(checkpointfile):
+    """ Return the PLS model.
+
+    Parameters
+    ----------
+    checkpointfile: str
+        the path to the model weights.
+
+    Returns
+    -------
+    model: Module
+        the instanciated model.
+    """
+    model = load(checkpointfile)
+    return model
+
+
+def eval_pls(model, data, modalities, n_samples=10):
+    """ Evaluate the PLS model.
+
+    Parameters
+    ----------
+    model: Module
+        the input model.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        names of the model input views.
+    n_samples: int, default 10
+        the number of models generated
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = {}
+    Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
+    X_test_l=([],[])
+    for i in range(n_samples):
+        X_test_r = model.transform(
+                X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
+        X_test_l[0].append(X_test_r[0])
+        X_test_l[1].append(X_test_r[1])
+    for idx, name in enumerate(modalities):
+        code = np.array(X_test_l[idx])
+        print_text(f"{name} latents: {code.shape}")
+        embeddings[f"PLS_{name}"] = code
+    return embeddings
+
