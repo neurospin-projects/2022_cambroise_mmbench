@@ -20,7 +20,10 @@ from torchvision import transforms
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from cvae.datasets import ContrastiveDataset
+try:
+    from cvae.datasets import ContrastiveDataset
+except:
+    ContrastiveDataset = object
 from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
 

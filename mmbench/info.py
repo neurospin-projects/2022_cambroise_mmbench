@@ -77,11 +77,9 @@ REQUIRES = [
     "fire",
     "torch",
     "torchvision",
+    "iterative-stratification",
     ("brainite @ "
      "git+https://github.com/neurospin-deepinsight/brainite.git#egg=brainite"),
-    ("cvae @ "
-     "git+https://github.com/neurospin-projects/2022_cambroise_mmbench.git"
-     "#egg=2022_cambroise_mmbench"),
     ("mopoe @ "
      "git+https://github.com/neurospin-deepinsight/mopoe.git#egg=mopoe")
 ]

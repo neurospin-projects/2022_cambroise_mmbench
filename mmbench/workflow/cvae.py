@@ -20,9 +20,6 @@ import torch
 from torch.utils.data import TensorDataset
 from mmbench.dataset import EUAIMSDataset
 from mmbench.color_utils import print_title
-from cvae.model import mmcVAE
-from cvae.loss import mmcVAELoss
-from cvae.utils import train_model
 
 
 def train_cvae(dataset, datasetdir, outdir, general_lat_dims=15,
@@ -60,6 +57,9 @@ def train_cvae(dataset, datasetdir, outdir, general_lat_dims=15,
     port: int, default 8085
         the port on which the visdom server is launched.
     """
+    from cvae.model import mmcVAE
+    from cvae.loss import mmcVAELoss
+    from cvae.utils import train_model
     from brainboard import Board
 
     print_title("Load dataset...")
