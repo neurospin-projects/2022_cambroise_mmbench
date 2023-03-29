@@ -107,11 +107,11 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             predict_results.setdefault(qname, {})[latent_key] = np.asarray(res)
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
     predict_df = pd.concat([predict_df[col].explode() for col in predict_df],
-                            axis="columns")
+                           axis="columns")
     predict_df.to_csv(os.path.join(benchdir, "predict.tsv"), sep="\t",
                       index=False)
     _df = pd.concat(res_cv_list)
-    _df.to_csv(os.path.join(benchdir, f"predict_cv.tsv"), sep="\t",
+    _df.to_csv(os.path.join(benchdir, "predict_cv.tsv"), sep="\t",
                index=False)
 
     print_subtitle("Display statistics...")

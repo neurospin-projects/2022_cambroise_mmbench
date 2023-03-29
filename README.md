@@ -42,7 +42,7 @@ If you have any question about the code or the paper, we are happy to help!
 
 * [Official source code repo.](https://github.com/neurospin-projects/2022_cambroise_mmbench)
 * HTML documentation (stable release): WIP.
-* [HTML documentation (latest release).](https://readthedocs.org/projects/mmbench)
+* [HTML documentation (latest release).](https://mmbench.readthedocs.io/en/latest)
 * [Release notes.](https://github.com/neurospin-projects/2022_cambroise_mmbench/blob/master/CHANGELOG.rst)
 
 ## References
