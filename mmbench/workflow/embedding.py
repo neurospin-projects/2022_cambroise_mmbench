@@ -20,7 +20,7 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data
+from mmbench.dataset import get_test_data, get_train_data
 from mmbench.model import (get_mopoe, get_smcvae, eval_mopoe, eval_smcvae,
                            get_pls, eval_pls)
 
@@ -62,12 +62,18 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     data, meta_df = get_test_data(dataset, datasetdir, modalities)
+    data_tr, meta_df_tr = get_train_data(dataset, datasetdir, modalities)
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
+        data_tr[mod] = data_tr[mod].to(device).float()
     print_text([(key, arr.shape) for key, arr in data.items()])
     print_text(meta_df)
+    print_text([(key, arr.shape) for key, arr in data_tr.items()])
+    print_text(meta_df_tr)
     meta_file = os.path.join(benchdir, f"latent_meta_{dataset}.tsv")
+    meta_file_tr = os.path.join(benchdir, f"latent_meta_train_{dataset}.tsv")
     meta_df.to_csv(meta_file, sep="\t", index=False)
+    meta_df_tr.to_csv(meta_file_tr, sep="\t", index=False)
     print_result(f"metadata: {meta_file}")
 
     print_subtitle("Parsing config...")
@@ -79,6 +85,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     default_params = {
         "n_channels": len(modalities),
         "n_feats": [data[mod].shape[1] for mod in modalities],
+        "n_feats_tr": [data_tr[mod].shape[1] for mod in modalities],
         "modalities": modalities}
     for name, params in parser.config.models.items():
         model = params["get"](
@@ -92,6 +99,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
 
     print_subtitle("Evaluate models...")
     results = {}
+    results_tr = {}
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
         if not(name == "PLS"):
@@ -99,12 +107,20 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
             model.eval()
         with torch.set_grad_enabled(False):
             embeddings = eval_fct(model, data, **kwargs_fct)
+            embeddings_tr = eval_fct(model, data_tr, **kwargs_fct)
             for key, val in embeddings.items():
                 key = _sanitize(key)
                 results[f"{key}_{dataset}"] = val
+            for key, val in embeddings_tr.items():
+                key = _sanitize(key)
+                results_tr[f"{key}_{dataset}"] = val
     features_file = os.path.join(benchdir, f"latent_vecs_{dataset}.npz")
+    features_file_tr = os.path.join(benchdir,
+                                    f"latent_vecs_train_{dataset}.npz")
     np.savez_compressed(features_file, **results)
+    np.savez_compressed(features_file_tr, **results_tr)
     print_result(f"features: {features_file}")
+    print_result(f"train features: {features_file_tr}")
 
 
 def _sanitize(key):

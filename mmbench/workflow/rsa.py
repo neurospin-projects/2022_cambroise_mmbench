@@ -37,13 +37,13 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     outdir: str
         the destination folder.
 
-    Note
-    ----
-    The samples are generated with the 'bench-latent' sub-command and are
-    stored in the 'outdir' in a file named 'latent_vecs.npz'. The samples
-    shape is (n_samples, n_subjects, latent_dim). All samples must have the
-    same number of samples and subjects, but possibly different latent
-    dimensions.
+    Notes
+    -----
+    - The samples are generated with the 'bench-latent' sub-command and are
+      stored in the 'outdir' in a file named 'latent_vecs_<dataset>.npz'.
+    - The samples shape is (n_samples, n_subjects, latent_dim). All samples
+      must have the same number of samples and subjects, but possibly
+      different latent dimensions.
     """
     print_title(f"COMPARE MODELS USING RSA ANALYSIS: {dataset}")
     benchdir = outdir
