@@ -185,10 +185,10 @@ def eval_pls(model, data, modalities, n_samples=10):
     """
     embeddings = {}
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    X_test_l=([],[])
+    X_test_l = ([], [])
     for i in range(n_samples):
         X_test_r = model.transform(
-                X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
+            X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
         X_test_l[0].append(X_test_r[0])
         X_test_l[1].append(X_test_r[1])
     for idx, name in enumerate(modalities):
@@ -196,4 +196,3 @@ def eval_pls(model, data, modalities, n_samples=10):
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings
-
