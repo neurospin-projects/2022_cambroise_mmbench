@@ -103,8 +103,10 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
         if not (name == "PLS"):
-            model = model.to(device)
-            model.eval()
+            for idx, mod in enumerate(model):
+                mod = mod.to(device)
+                mod.eval()
+                model[idx]=mod
         with torch.set_grad_enabled(False):
             embeddings = eval_fct(model, data, **kwargs_fct)
             embeddings_tr = eval_fct(model, data_tr, **kwargs_fct)

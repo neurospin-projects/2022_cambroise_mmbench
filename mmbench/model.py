@@ -15,7 +15,6 @@ Define the different models.
 import os
 import torch
 import numpy as np
-from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
@@ -29,39 +28,40 @@ def get_mopoe(checkpointfile):
     Parameters
     ----------
     checkpointfile: str
-        the path to the model weights.
+        list of paths to model weights.
 
     Returns
     -------
     model: Module
-        the instanciated model.
+        instanciated models.
     """
-    flags_file = os.path.join(
-        os.path.dirname(checkpointfile), os.pardir, os.pardir,
-        "flags.rar")
-    if not os.path.isfile(flags_file):
-        raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
-    alphabet_file = os.path.join(
-        os.path.dirname(mopoe.__file__), "alphabet.json")
-    print_text(f"restoring weights: {checkpointfile}")
-    experiment, flags = MultimodalExperiment.get_experiment(
-        flags_file, alphabet_file, checkpointfile)
-    return experiment.mm_vae
+    models = []
+    for model_file in checkpointfile:
+        flags_file = os.path.join(
+                os.path.dirname(model_file), os.pardir, os.pardir,
+                "flags.rar")
+        if not os.path.isfile(flags_file):
+            raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
+        alphabet_file = os.path.join(
+            os.path.dirname(mopoe.__file__), "alphabet.json")
+        print_text(f"restoring weights: {model_file}")
+        experiment, flags = MultimodalExperiment.get_experiment(
+            flags_file, alphabet_file, model_file)
+        models.append(experiment.mm_vae)
+    return models
 
 
-def eval_mopoe(model, data, modalities, n_samples=10):
+def eval_mopoe(models, data, modalities):
     """ Evaluate the MOPOE model.
 
     Parameters
     ----------
-    model: Module
-        the input model.
+    models: list of Module
+        input models.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
-        the number of time to sample the posterior.
 
     Returns
     -------
@@ -69,14 +69,16 @@ def eval_mopoe(model, data, modalities, n_samples=10):
         the generated latent representations.
     """
     embeddings = {}
-    inf_data = model.inference(data)
-    latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
-    latents += [inf_data["joint"]]
+    z_mu = tuple([] for _ in range(len(modalities)+1))
+    for i, model in enumerate(models):
+        inf_data = model.inference(data)
+        latents = [inf_data["modalities"][f"{mod}_style"]
+                   for mod in modalities]
+        latents += [inf_data["joint"]]
+        for idx, name in enumerate(modalities + ["joint"]):
+            z_mu[idx].append(latents[idx][0].cpu().detach().numpy())
     for idx, name in enumerate(modalities + ["joint"]):
-        z_mu, z_logvar = latents[idx]
-        q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
-        z_samples = q.sample((n_samples, ))
-        code = z_samples.cpu().detach().numpy()
+        code = np.array(z_mu[idx])
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"MoPoe_{name}"] = code
     return embeddings
@@ -88,7 +90,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     Parameters
     ----------
     checkpointfile: str
-        the path to the model weights.
+        list of paths to model weights.
     latent_dim: int
         the number of latent dimensions.
     n_channels: int
@@ -101,28 +103,29 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     Returns
     -------
     model: Module
-        the instanciated model.
+        instanciated models.
     """
-    model = MCVAE(n_channels=n_channels, n_feats=n_feats, sparse=True,
+    models = []
+    for model_file in checkpointfile:
+        model = MCVAE(n_channels=n_channels, n_feats=n_feats, sparse=True,
                   **kwargs)
-    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
-    model.load_state_dict(checkpoint["model"])
-    return model
+        checkpoint = torch.load(model_file, map_location=torch.device("cpu"))
+        model.load_state_dict(checkpoint["model"])
+        models.append(model)
+    return models
 
 
-def eval_smcvae(model, data, modalities, n_samples=10):
+def eval_smcvae(models, data, modalities):
     """ Evaluate the sMCVAE model.
 
     Parameters
     ----------
-    model: Module
-        the input model.
+    models: list of Module
+        input models.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
-        the number of time to sample the posterior.
 
     Returns
     -------
@@ -130,20 +133,21 @@ def eval_smcvae(model, data, modalities, n_samples=10):
         the generated latent representations.
     """
     embeddings = {}
-    latents = model.encode([data[mod] for mod in modalities])
-    z_samples = [q.sample((n_samples, )).cpu().detach().numpy()
-                 for q in latents]
-    z_samples = [z.reshape(-1, model.latent_dim)
-                 for z in z_samples]
-    z_samples = model.apply_threshold(
-        z_samples, threshold=0.2, keep_dims=False, reorder=True)
-    thres_latent_dim = z_samples[0].shape[1]
-    z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
-                 for z in z_samples]
+    code = []
+    for idx, model in enumerate(models):
+        latents = model.encode([data[mod] for mod in modalities])
+        z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
+        z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
+        z_samples = model.apply_threshold(
+                z_samples, threshold=0.2, keep_dims=False, reorder=True)
+        thres_latent_dim = z_samples[0].shape[1]
+        z_samples = [z.reshape(1, -1, thres_latent_dim) for z in z_samples]
+        code.append([z_mod[0] for z_mod in z_samples])
+    code = np.array(code)
+    code = code.transpose((1, 0, 2, 3))
     for idx, name in enumerate(modalities):
-        code = z_samples[idx]
-        print_text(f"{name} latents: {code.shape}")
-        embeddings[f"sMCVAE_{name}"] = code
+        print_text(f"{name} latents: {code[idx].shape}")
+        embeddings[f"sMCVAE_{name}"] = code[idx]
     return embeddings
 
 
@@ -152,31 +156,31 @@ def get_pls(checkpointfile):
 
     Parameters
     ----------
-    checkpointfile: str
-        the path to the model weights.
+    checkpointfile: list of str
+        list of paths to model weights.
 
     Returns
     -------
-    model: Module
-        the instanciated model.
+    models: list of Module
+        instanciated models.
     """
-    model = load(checkpointfile)
-    return model
+    models = []
+    for model_file in checkpointfile:
+        models.append(load(model_file))
+    return models
 
 
-def eval_pls(model, data, modalities, n_samples=10):
+def eval_pls(models, data, modalities):
     """ Evaluate the PLS model.
 
     Parameters
     ----------
-    model: Module
-        the input model.
+    models: list of Module
+        input models.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
-        the number of models generated
 
     Returns
     -------
@@ -186,7 +190,7 @@ def eval_pls(model, data, modalities, n_samples=10):
     embeddings = {}
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
     X_test_l = ([], [])
-    for i in range(n_samples):
+    for model in models:
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
         X_test_l[0].append(X_test_r[0])
