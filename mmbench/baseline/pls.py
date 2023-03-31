@@ -23,7 +23,7 @@ from joblib import dump
 
 
 def benchmark_pls_exp(
-        dataset, datasetdir, outdir, fit_lat_dims=10):
+        dataset, datasetdir, outdir, fit_lat_dims=3):
     """ Train the PLS model
 
     Parameters
@@ -34,7 +34,7 @@ def benchmark_pls_exp(
         the path to the dataset associated data.
     outdir: str
         the destination folder.
-    fit_lat_dims: int, default 10
+    fit_lat_dims: int, default 3
         the number of latent dimensions.
 
     Note
