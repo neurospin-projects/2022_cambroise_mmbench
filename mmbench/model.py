@@ -38,8 +38,7 @@ def get_mopoe(checkpointfile):
     models = []
     for model_file in checkpointfile:
         flags_file = os.path.join(
-                os.path.dirname(model_file), os.pardir, os.pardir,
-                "flags.rar")
+           os.path.dirname(model_file), os.pardir, os.pardir, "flags.rar")
         if not os.path.isfile(flags_file):
             raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
         alphabet_file = os.path.join(
@@ -69,7 +68,7 @@ def eval_mopoe(models, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
-    z_mu = tuple([] for _ in range(len(modalities)+1))
+    z_mu = tuple([] for _ in range(len(modalities) + 1))
     for i, model in enumerate(models):
         inf_data = model.inference(data)
         latents = [inf_data["modalities"][f"{mod}_style"]
@@ -108,7 +107,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     models = []
     for model_file in checkpointfile:
         model = MCVAE(n_channels=n_channels, n_feats=n_feats, sparse=True,
-                  **kwargs)
+                      **kwargs)
         checkpoint = torch.load(model_file, map_location=torch.device("cpu"))
         model.load_state_dict(checkpoint["model"])
         models.append(model)
@@ -139,7 +138,7 @@ def eval_smcvae(models, data, modalities):
         z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
         z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
         z_samples = model.apply_threshold(
-                z_samples, threshold=0.2, keep_dims=False, reorder=True)
+            z_samples, threshold=0.2, keep_dims=False, reorder=True)
         thres_latent_dim = z_samples[0].shape[1]
         z_samples = [z.reshape(1, -1, thres_latent_dim) for z in z_samples]
         code.append([z_mod[0] for z_mod in z_samples])
