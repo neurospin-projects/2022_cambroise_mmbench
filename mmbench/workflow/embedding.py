@@ -21,7 +21,8 @@ from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data, get_train_data
-from mmbench.model import get_mopoe, get_smcvae, eval_mopoe, eval_smcvae
+from mmbench.model import (get_mopoe, get_smcvae, eval_mopoe, eval_smcvae,
+                           get_pls, eval_pls)
 
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
@@ -101,8 +102,9 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     results_tr = {}
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
-        model = model.to(device)
-        model.eval()
+        if isinstance(model, torch.nn.Module):
+            model = model.to(device)
+            model.eval()
         with torch.set_grad_enabled(False):
             embeddings = eval_fct(model, data, **kwargs_fct)
             embeddings_tr = eval_fct(model, data_tr, **kwargs_fct)

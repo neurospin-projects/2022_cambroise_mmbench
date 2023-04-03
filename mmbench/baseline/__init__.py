@@ -10,3 +10,5 @@
 """
 Definition of the ML baselines.
 """
+
+from .pls import train_pls

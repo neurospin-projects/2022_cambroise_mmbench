@@ -85,7 +85,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
         for latent_key in latent_data_test:
-            print_text(f"- {qname} - {latent_key}...")
+            print_text(f"- {qname} - {latent_key}...")
             res, res_cv = [], []
             samples_train = latent_data_train[latent_key]
             samples_test = latent_data_test[latent_key]
