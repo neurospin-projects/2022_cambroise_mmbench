@@ -165,8 +165,8 @@ def get_pls(checkpointfile):
         instanciated models.
     """
     models = []
-    for model_file in checkpointfile:
-        models.append(load(model_file))
+    for file in checkpointfile:
+        models.append(load(file))
     return models
 
 
