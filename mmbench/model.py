@@ -148,7 +148,7 @@ def eval_smcvae(model, data, modalities, n_samples=10):
 
 
 def get_pls(checkpointfile):
-    """ Return the PLS model.
+    """ Return PLS models.
 
     Parameters
     ----------
@@ -157,26 +157,26 @@ def get_pls(checkpointfile):
 
     Returns
     -------
-    model: Module
-        the instanciated model.
+    models: Module
+        instanciated models.
     """
-    model = load(checkpointfile)
-    return model
+    models = []
+    for file in checkpointfile:
+        models.append(load(file))
+    return models
 
 
-def eval_pls(model, data, modalities, n_samples=10):
+def eval_pls(models, data, modalities):
     """ Evaluate the PLS model.
 
     Parameters
     ----------
-    model: Module
-        the input model.
+    models: Module
+        input models.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
-        the number of models generated
 
     Returns
     -------
@@ -185,14 +185,14 @@ def eval_pls(model, data, modalities, n_samples=10):
     """
     embeddings = {}
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    X_test_l = ([], [])
-    for i in range(n_samples):
+    latent = ([], [])
+    for model in models:
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
-        X_test_l[0].append(X_test_r[0])
-        X_test_l[1].append(X_test_r[1])
+        latent[0].append(X_test_r[0])
+        latent[1].append(X_test_r[1])
     for idx, name in enumerate(modalities):
-        code = np.array(X_test_l[idx])
+        code = np.array(latent[idx])
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings

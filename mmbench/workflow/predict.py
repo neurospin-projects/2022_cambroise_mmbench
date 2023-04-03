@@ -98,7 +98,6 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
                 res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
                 scorer = metrics.get_scorer(scoring)
                 res.append(scorer(clf, samples_test[idx], y_test))
-#                res.append(clf.score(samples_test[idx], y_test))
             res_cv_df = pd.DataFrame.from_dict(
                 {"model": range(n_samples), "score": res_cv})
             res_cv_df["qname"] = qname
