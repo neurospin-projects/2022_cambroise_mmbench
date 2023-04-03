@@ -13,15 +13,15 @@ Define the predicction workflows.
 # Imports
 import os
 import torch
-from mmbench.dataset import get_train_data, get_test_data
+from mmbench.dataset import get_train_data
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.model_selection import train_test_split
 from mmbench.color_utils import print_title, print_subtitle
 from joblib import dump
 
 
-def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3,
-                      n_samples=10, random_state=None):
+def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_samples=10,
+              random_state=None):
     """ Train the PLS model
 
     Parameters
