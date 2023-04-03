@@ -102,7 +102,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     results_tr = {}
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
-        if not (name == "PLS"):
+        if isinstance(model, torch.nn.Module):
             for idx, mod in enumerate(model):
                 mod = mod.to(device)
                 mod.eval()

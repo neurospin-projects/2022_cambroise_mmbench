@@ -11,4 +11,4 @@
 Definition of the ML baselines.
 """
 
-from .pls import benchmark_pls_exp
+from .pls import train_pls
