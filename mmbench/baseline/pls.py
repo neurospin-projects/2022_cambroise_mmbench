@@ -8,7 +8,7 @@
 ##########################################################################
 
 """
-Define the predicction workflows.
+Define the prediction workflows.
 """
 # Imports
 import os
