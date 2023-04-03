@@ -38,7 +38,7 @@ def get_mopoe(checkpointfile):
     models = []
     for model_file in checkpointfile:
         flags_file = os.path.join(
-           os.path.dirname(model_file), os.pardir, os.pardir, "flags.rar")
+            os.path.dirname(model_file), os.pardir, os.pardir, "flags.rar")
         if not os.path.isfile(flags_file):
             raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
         alphabet_file = os.path.join(
