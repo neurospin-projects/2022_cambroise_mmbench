@@ -75,7 +75,10 @@ def eval_mopoe(model, data, modalities, n_samples=10):
     for idx, name in enumerate(modalities + ["joint"]):
         z_mu, z_logvar = latents[idx]
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
-        z_samples = q.sample((n_samples, ))
+        if n_samples == 1:
+            z_samples = q.loc
+        else:
+            z_samples = q.sample((n_samples, ))
         code = z_samples.cpu().detach().numpy()
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"MoPoe_{name}"] = code
@@ -131,15 +134,19 @@ def eval_smcvae(model, data, modalities, n_samples=10):
     """
     embeddings = {}
     latents = model.encode([data[mod] for mod in modalities])
-    z_samples = [q.sample((n_samples, )).cpu().detach().numpy()
-                 for q in latents]
+    if n_samples == 1:
+        z_samples = [q.loc.cpu().detach().numpy() for q in latents]
+    else:
+        z_samples = [q.sample((n_samples, )).cpu().detach().numpy()
+                     for q in latents]
     z_samples = [z.reshape(-1, model.latent_dim)
                  for z in z_samples]
     z_samples = model.apply_threshold(
         z_samples, threshold=0.2, keep_dims=False, reorder=True)
     thres_latent_dim = z_samples[0].shape[1]
-    z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
-                 for z in z_samples]
+    if n_samples > 1:
+        z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
+                     for z in z_samples]
     for idx, name in enumerate(modalities):
         code = z_samples[idx]
         print_text(f"{name} latents: {code.shape}")

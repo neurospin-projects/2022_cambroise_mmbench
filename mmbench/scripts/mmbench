@@ -23,8 +23,10 @@ fire.Fire({
     "train-mopoe": wf2.train_exp,
     "train-smcvae": wf1.train_smcvae,
     "train-cvae": wf1.train_cvae,
+    "train-pls":bl1.train_pls,
     "latent": wf1.benchmark_latent_exp,
     "rsa": wf1.benchmark_rsa_exp,
     "pred": wf1.benchmark_pred_exp,
-    "pls":bl1.train_pls
+    "feature-similarity": wf1.benchmark_feature_similarity_exp,
+    "barrier-performance": wf1.benchmark_barrier_exp
 })
