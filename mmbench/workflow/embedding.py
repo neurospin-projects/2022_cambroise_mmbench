@@ -16,13 +16,13 @@ import os
 from pprint import pprint
 import numpy as np
 import pandas as pd
+from sklearn import metrics
 import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data, get_train_data
-from mmbench.model import (get_mopoe, get_smcvae, eval_mopoe, eval_smcvae,
-                           get_pls, eval_pls)
+from mmbench.workflow.predict import get_predictor
 
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):

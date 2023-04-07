@@ -78,6 +78,9 @@ REQUIRES = [
     "torch",
     "torchvision",
     "iterative-stratification",
+    ("brainboard @ "
+     "git+https://github.com/neurospin-deepinsight/brainboard.git#"
+     "egg=brainboard"),
     ("brainite @ "
      "git+https://github.com/neurospin-deepinsight/brainite.git#egg=brainite"),
     ("mopoe @ "

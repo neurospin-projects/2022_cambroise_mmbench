@@ -132,6 +132,7 @@ def eval_smcvae(models, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
+<<<<<<< HEAD
     code = []
     for idx, model in enumerate(models):
         latents = model.encode([data[mod] for mod in modalities])

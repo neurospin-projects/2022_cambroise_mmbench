@@ -10,6 +10,7 @@ fire
 torch
 torchvision
 iterative-stratification
+git+https://github.com/neurospin-deepinsight/brainboard.git
 git+https://github.com/neurospin-deepinsight/brainite.git
 git+https://github.com/neurospin-deepinsight/mopoe.git
 
