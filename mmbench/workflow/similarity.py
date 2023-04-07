@@ -79,28 +79,22 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if not isinstance(checkpoints, list):
             continue
-        _models = []
-        for path in checkpoints:
-            _params = copy.deepcopy(params)
-            _params["get_kwargs"]["checkpointfile"] = path
-            model = params["get"](
-                **parser.set_auto_params(_params["get_kwargs"],
-                                         default_params))
-            _models.append(model)
+        _models = params["get"](
+            **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
-        models[name] = (_models, params["eval"], eval_kwargs)
-    for name, (_models, _, _) in models.items():
+        models[name] = (_models, params["eval"], eval_kwargs, params["layers"])
+    for name, (_models, _, _, _) in models.items():
         print_text(f"model: {name}")
         print(get_named_layers(_models[0]).keys())
         print(_models[0])
 
     print_subtitle("Evaluate models...")
     results_test = {}
-    for name, (_models, eval_fct, eval_kwargs) in models.items():
+    for name, (_models, eval_fct, eval_kwargs, _layers) in models.items():
         print_text(f"model: {name}")
         scores_test = {}
-        for layer_name in _params["layers"]:
+        for layer_name in _layers:
             n_models = len(_models)
             iu = np.array(np.triu_indices(n_models, k=1)).T
             mat = np.zeros((n_models, n_models))

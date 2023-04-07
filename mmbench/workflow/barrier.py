@@ -65,6 +65,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     data_train, meta_train_df = get_train_data(dataset, datasetdir, modalities)
+    assert downstream_name in meta_train_df.columns, (
+        f"Expect downstream_name in {meta_train_df.columns}")
     data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
     y_train = meta_train_df[downstream_name]
     y_test = meta_test_df[downstream_name]
@@ -90,17 +92,10 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if not isinstance(checkpoints, list):
             continue
-        _models = []
-        for path in checkpoints:
-            _params = copy.deepcopy(params)
-            _params["get_kwargs"]["checkpointfile"] = path
-            model = params["get"](
-                **parser.set_auto_params(_params["get_kwargs"],
-                                         default_params))
-            _models.append(model)
+        _models = params["get"](
+            **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
-        eval_kwargs["n_samples"] = 1
         models[name] = (_models, params["eval"], eval_kwargs)
     for name, (_models, _, _) in models.items():
         print_text(f"model: {name}")

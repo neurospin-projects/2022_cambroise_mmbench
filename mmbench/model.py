@@ -55,7 +55,7 @@ def eval_mopoe(models, data, modalities):
 
     Parameters
     ----------
-    models: list of Module
+    models: Module or list of Module
         input models.
     data: dict
         the input data organized by views.
@@ -69,7 +69,9 @@ def eval_mopoe(models, data, modalities):
     """
     embeddings = {}
     z_mu = tuple([] for _ in range(len(modalities) + 1))
-    for i, model in enumerate(models):
+    if not isinstance(models, list):
+        models = [models]
+    for model in models:
         inf_data = model.inference(data)
         latents = [inf_data["modalities"][f"{mod}_style"]
                    for mod in modalities]
@@ -119,7 +121,7 @@ def eval_smcvae(models, data, modalities):
 
     Parameters
     ----------
-    models: list of Module
+    models: Module or list of Module
         input models.
     data: dict
         the input data organized by views.
@@ -132,8 +134,9 @@ def eval_smcvae(models, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
-<<<<<<< HEAD
     code = []
+    if not isinstance(models, list):
+        models = [models]
     for idx, model in enumerate(models):
         latents = model.encode([data[mod] for mod in modalities])
         z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
@@ -146,8 +149,11 @@ def eval_smcvae(models, data, modalities):
     code = np.array(code)
     code = code.transpose((1, 0, 2, 3))
     for idx, name in enumerate(modalities):
-        print_text(f"{name} latents: {code[idx].shape}")
-        embeddings[f"sMCVAE_{name}"] = code[idx]
+        if code[idx].shape[0] == 1:
+            embeddings[f"sMCVAE_{name}"] = code[idx][0]
+        else:
+            print_text(f"{name} latents: {code[idx].shape}")
+            embeddings[f"sMCVAE_{name}"] = code[idx]
     return embeddings
 
 
