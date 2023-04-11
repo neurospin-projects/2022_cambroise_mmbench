@@ -77,7 +77,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
         "modalities": modalities}
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
-        if (not isinstance(checkpoints, (list,  tuple))
+        if (not isinstance(checkpoints, (list, tuple))
            or "layers" not in params):
             continue
         _models = params["get"](
