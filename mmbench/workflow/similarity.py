@@ -77,7 +77,8 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
         "modalities": modalities}
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
-        if not isinstance(checkpoints, list):
+        if (not isinstance(checkpoints, (list,  tuple))
+           or "layers" not in params):
             continue
         _models = params["get"](
             **parser.set_auto_params(params["get_kwargs"], default_params))
@@ -92,6 +93,8 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
     print_subtitle("Evaluate models...")
     results_test = {}
     for name, (_models, eval_fct, eval_kwargs, _layers) in models.items():
+        if not isinstance(_models[0], torch.nn.Module):
+            continue
         print_text(f"model: {name}")
         scores_test = {}
         for layer_name in _layers:

@@ -79,9 +79,12 @@ def eval_mopoe(models, data, modalities):
         for idx, name in enumerate(modalities + ["joint"]):
             z_mu[idx].append(latents[idx][0].cpu().detach().numpy())
     for idx, name in enumerate(modalities + ["joint"]):
-        code = np.array(z_mu[idx])
-        print_text(f"{name} latents: {code.shape}")
-        embeddings[f"MoPoe_{name}"] = code
+        if len(z_mu[idx]) == 1:
+            embeddings[f"Mopoe_{name}"] = z_mu[idx][0]
+        else:
+            code = np.array(z_mu[idx])
+            print_text(f"{name} latents: {code.shape}")
+            embeddings[f"MoPoe_{name}"] = code
     return embeddings
 
 

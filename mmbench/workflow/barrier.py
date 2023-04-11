@@ -90,7 +90,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         "modalities": modalities}
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
-        if not isinstance(checkpoints, list):
+        if not isinstance(checkpoints, (list, tuple)):
             continue
         _models = params["get"](
             **parser.set_auto_params(params["get_kwargs"], default_params))
@@ -123,6 +123,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
 
     results_test = {}
     for name, (_models, eval_fct, eval_kwargs) in models.items():
+        if not isinstance(_models[0], torch.nn.Module):
+            continue
         print_text(f"model: {name}")
         kwargs = {"eval_fn": eval_fct, "eval_kwargs": eval_kwargs,
                   "y_train": y_train, "y_test": y_test}
