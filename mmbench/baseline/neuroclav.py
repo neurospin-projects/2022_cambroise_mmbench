@@ -72,11 +72,11 @@ def train_neuroclav(dataset, datasetdir, outdir, fit_lat_dims=20, n_iter=100):
                 whether the phenotypes will be z-normalized across subjects or
                 not.
             """
-            assert split in ["train", "test"], f"Uknown split: {split}"
+            assert split in ["train", "test"], f"Unknown split: {split}"
             for X, y in ((X_train, y_train), (X_test, y_test)):
                 assert len(X) == len(y), (
                     "Different number of subjects in X and y.")
-            if not isinstance(phenotypes, list):
+            if not isinstance(phenotypes, (list, tuple)):
                 phenotypes = [phenotypes]
             for y in (y_train, y_test):
                 assert y.shape[1] == len(phenotypes), (
@@ -154,7 +154,7 @@ def train_neuroclav(dataset, datasetdir, outdir, fit_lat_dims=20, n_iter=100):
             return arr
 
     print_title("Training NeuroClav...")
-    print_subtitle("Generating data laoder...")
+    print_subtitle("Generating data loader...")
     modalities = ["rois", "clinical"]
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -166,9 +166,10 @@ def train_neuroclav(dataset, datasetdir, outdir, fit_lat_dims=20, n_iter=100):
     X_test, y_test = [X_test[mod].to(torch.float32) for mod in modalities]
     clinical_names = np.load(
         os.path.join(datasetdir, "clinical_names.npy"), allow_pickle=True)
+    clinical_names = clinical_names.tolist()
     print("- train:", X_train.shape, y_train.shape)
     print("- test:", X_test.shape, y_test.shape)
-    print("- phenotypes:", clinical_names)
+    print("- phenotypes:", clinical_names, len(clinical_names))
     datasets = dict(
         (split, NeuroClavDataset(X_train, y_train, X_test, y_test,
                                  clinical_names, split=split, znorm=True))
@@ -190,7 +191,7 @@ def train_neuroclav(dataset, datasetdir, outdir, fit_lat_dims=20, n_iter=100):
     print(model._build_model(model.encoder))
 
     print_subtitle("Fitting model...")
-    n_erase = int(X_train.shape[1] * 0.2)
+    n_erase = int(X_train.shape[1] * 0.1)
     print("- n erase:", n_erase)
     collate_fn = RandomCutoutCollateFunction(n_iter=n_erase, p=0.8, znorm=True)
     model.fit(datasets["train"], collate_fn=collate_fn,
