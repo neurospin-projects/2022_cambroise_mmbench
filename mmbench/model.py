@@ -15,12 +15,12 @@ Define the different models.
 import os
 import torch
 import numpy as np
+from joblib import load
 from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
 from mmbench.color_utils import print_text
-from joblib import load
 
 
 def get_mopoe(checkpointfile):
@@ -168,8 +168,8 @@ def get_pls(checkpointfile):
         instanciated models.
     """
     models = []
-    for file in checkpointfile:
-        models.append(load(file))
+    for path in checkpointfile:
+        models.append(load(path))
     return models
 
 
@@ -203,3 +203,52 @@ def eval_pls(models, data, modalities):
         print_text(f"{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings
+
+
+def get_neuroclav(checkpointfile, n_feats, **kwargs):
+    """ Return the NeuroCLAV model.
+
+    Parameters
+    ----------
+    checkpointfile: str
+        the path to the model weights.
+    kwargs: dict
+        extra parameters passed to the NeuroCLAV constructor.
+
+    Returns
+    -------
+    model: Module
+        the instanciated model.
+    """
+    from models.mlp import MLP
+
+    model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
+    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
+    model.load_state_dict(checkpoint)
+    return model
+
+
+def eval_neuroclav(model, data, modalities):
+    """ Evaluate the NeuroCLAV model.
+
+    Parameters
+    ----------
+    model: Module
+        the input model.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        names of the model input views.
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = {}
+    assert "rois" in modalities  # TODO: use function parameters
+    view_data = data["rois"]
+    model.eval()
+    with torch.no_grad():
+        embeddings = model(view_data)
+    return embeddings.cpu().detach().numpy()

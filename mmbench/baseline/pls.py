@@ -8,8 +8,9 @@
 ##########################################################################
 
 """
-Define the prediction workflows.
+Define the PLS model.
 """
+
 # Imports
 import os
 import torch
@@ -20,7 +21,7 @@ from mmbench.color_utils import print_title, print_subtitle
 from joblib import dump
 
 
-def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_samples=10,
+def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_iter=10,
               random_state=None):
     """ Train the PLS model
 
@@ -34,8 +35,8 @@ def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_samples=10,
         the destination folder.
     fit_lat_dims: int, default 3
         the number of latent dimensions.
-    n_samples: int, default 10
-        the number of models generated
+    n_iter: int, default 10
+        the number of trained models.
     random_state: list of int, default None
         controls the shuffling applied to the data before applying the split.
         Pass a list of n_sampoles int for reproducible output across multiple
@@ -47,7 +48,7 @@ def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_samples=10,
     'pls_model.joblib'. 'outdir' must correspond to the path given in the
     configuration file for the PLS checkpointfile.
     """
-    print_title(" PLS ")
+    print_title("PLS ")
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     X_train, _ = get_train_data(dataset, datasetdir, modalities)
@@ -59,8 +60,8 @@ def train_pls(dataset, datasetdir, outdir, fit_lat_dims=3, n_samples=10,
 
     print_subtitle("Create models...")
     if random_state is None:
-        random_state = [None] * n_samples
-    for idx in range(n_samples):
+        random_state = [None] * n_iter
+    for idx in range(n_iter):
         Xi_train, _, Yi_train, _ = train_test_split(
             X_train, Y_train, test_size=0.2, random_state=random_state[idx])
         pls = PLSRegression(n_components=fit_lat_dims)

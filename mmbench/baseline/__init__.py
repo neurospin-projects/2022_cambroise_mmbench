@@ -12,3 +12,4 @@ Definition of the ML baselines.
 """
 
 from .pls import train_pls
+from .neuroclav import train_neuroclav
