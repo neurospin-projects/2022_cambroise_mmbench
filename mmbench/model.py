@@ -146,13 +146,14 @@ def eval_smcvae(models, data, modalities, threshold=0.2):
         latents = model.encode([data[mod] for mod in modalities])
         z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
         z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
-        dim = []
-        for elem in z_samples:
-            dim.append(elem.ndim)
-        z_samples = model.apply_threshold(
-            z_samples, threshold=threshold, keep_dims=False, reorder=True)
-        if [elem.ndim for elem in z_samples] != dim:
-            z_samples = [elem.reshape(-1, 1) for elem in z_samples]
+        if threshold is not None:
+            dim = []
+            for elem in z_samples:
+                dim.append(elem.ndim)
+            z_samples = model.apply_threshold(
+                z_samples, threshold=threshold, keep_dims=False, reorder=True)
+            if [elem.ndim for elem in z_samples] != dim:
+                z_samples = [elem.reshape(-1, 1) for elem in z_samples]
         thres_latent_dim = z_samples[0].shape[1]
         z_samples = [z.reshape(1, -1, thres_latent_dim) for z in z_samples]
         code.append([z_mod[0] for z_mod in z_samples])
