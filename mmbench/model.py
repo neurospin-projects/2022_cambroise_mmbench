@@ -209,8 +209,8 @@ def eval_pls(models, data, modalities):
     for model in models:
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
-        latent[0].append(X_test_r[0])
-        latent[1].append(X_test_r[1])
+        latent[1].append(X_test_r[0])
+        latent[0].append(X_test_r[1])
     for idx, name in enumerate(modalities):
         code = np.array(latent[idx])
         print_text(f"{name} latents: {code.shape}")
