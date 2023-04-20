@@ -119,7 +119,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     return models
 
 
-def eval_smcvae(models, data, modalities):
+def eval_smcvae(models, data, modalities, threshold=0.2):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -130,6 +130,8 @@ def eval_smcvae(models, data, modalities):
         the input data organized by views.
     modalities: list of str
         names of the model input views.
+    threshold: float, default 10
+        value for thresholding
 
     Returns
     -------
@@ -144,8 +146,13 @@ def eval_smcvae(models, data, modalities):
         latents = model.encode([data[mod] for mod in modalities])
         z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
         z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
+        dim = []
+        for elem in z_samples:
+            dim.append(elem.ndim)
         z_samples = model.apply_threshold(
-            z_samples, threshold=0.2, keep_dims=False, reorder=True)
+            z_samples, threshold=threshold, keep_dims=False, reorder=True)
+        if [elem.ndim for elem in z_samples] != dim:
+            z_samples = [elem.reshape(-1, 1) for elem in z_samples]
         thres_latent_dim = z_samples[0].shape[1]
         z_samples = [z.reshape(1, -1, thres_latent_dim) for z in z_samples]
         code.append([z_mod[0] for z_mod in z_samples])
