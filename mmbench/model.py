@@ -15,6 +15,7 @@ Define the different models.
 import os
 import torch
 import numpy as np
+from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
@@ -50,7 +51,7 @@ def get_mopoe(checkpointfile):
     return models
 
 
-def eval_mopoe(models, data, modalities):
+def eval_mopoe(models, data, modalities, n_samples=10):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -61,6 +62,8 @@ def eval_mopoe(models, data, modalities):
         the input data organized by views.
     modalities: list of str
         names of the model input views.
+    n_samples: int, default 10
+        the number of time to sample the posterior.
 
     Returns
     -------
@@ -68,23 +71,27 @@ def eval_mopoe(models, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
-    z_mu = tuple([] for _ in range(len(modalities) + 1))
-    if not isinstance(models, list):
-        models = [models]
-    for model in models:
-        inf_data = model.inference(data)
-        latents = [inf_data["modalities"][f"{mod}_style"]
-                   for mod in modalities]
-        latents += [inf_data["joint"]]
-        for idx, name in enumerate(modalities + ["joint"]):
-            z_mu[idx].append(latents[idx][0].cpu().detach().numpy())
+    if isinstance(models, list):
+        embeddings = multi_eval(eval_mopoe, models, data, modalities,
+                                n_samples=n_samples)
+        for key in embeddings:
+            print_text(f"{key} latents: {embeddings[key].shape}")
+        return embeddings
+
+    inf_data = models.inference(data)
+    latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
+    latents += [inf_data["joint"]]
     for idx, name in enumerate(modalities + ["joint"]):
-        if len(z_mu[idx]) == 1:
-            embeddings[f"Mopoe_{name}"] = z_mu[idx][0]
+        z_mu, z_logvar = latents[idx]
+        q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
+        if n_samples == 1:
+            z_samples = q.loc
+            code = z_samples.cpu().detach().numpy()
         else:
-            code = np.array(z_mu[idx])
+            z_samples = q.sample((n_samples, ))
+            code = z_samples.cpu().detach().numpy()
             print_text(f"{name} latents: {code.shape}")
-            embeddings[f"MoPoe_{name}"] = code
+        embeddings[f"MoPoe_{name}"] = code
     return embeddings
 
 
@@ -119,7 +126,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     return models
 
 
-def eval_smcvae(models, data, modalities, threshold=0.2):
+def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -132,6 +139,8 @@ def eval_smcvae(models, data, modalities, threshold=0.2):
         names of the model input views.
     threshold: float, default 10
         value for thresholding
+    n_samples: int, default 10
+        the number of time to sample the posterior.
 
     Returns
     -------
@@ -139,32 +148,37 @@ def eval_smcvae(models, data, modalities, threshold=0.2):
         the generated latent representations.
     """
     embeddings = {}
-    code = []
-    if not isinstance(models, list):
-        models = [models]
-    for idx, model in enumerate(models):
-        latents = model.encode([data[mod] for mod in modalities])
-        z_samples = [q.sample((1, )).cpu().detach().numpy() for q in latents]
-        z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
-        if threshold is not None:
-            dim = []
-            for elem in z_samples:
-                dim.append(elem.ndim)
-            z_samples = model.apply_threshold(
-                z_samples, threshold=threshold, keep_dims=False, reorder=True)
-            if [elem.ndim for elem in z_samples] != dim:
-                z_samples = [elem.reshape(-1, 1) for elem in z_samples]
-        thres_latent_dim = z_samples[0].shape[1]
-        z_samples = [z.reshape(1, -1, thres_latent_dim) for z in z_samples]
-        code.append([z_mod[0] for z_mod in z_samples])
-    code = np.array(code)
-    code = code.transpose((1, 0, 2, 3))
+    if isinstance(models, list):
+        embeddings = multi_eval(eval_smcvae, models, data, modalities,
+                                threshold=threshold, n_samples=n_samples)
+        for key in embeddings:
+            print_text(f"{key} latents: {embeddings[key].shape}")
+        return embeddings
+
+    latents = models.encode([data[mod] for mod in modalities])
+    if n_samples == 1:
+        z_samples = [q.loc.cpu().detach().numpy() for q in latents]
+    else:
+        z_samples = [q.sample((n_samples, )).cpu().detach().numpy()
+                     for q in latents]
+    z_samples = [z.reshape(-1, models.latent_dim) for z in z_samples]
+    if threshold is not None:
+        dim = []
+        for elem in z_samples:
+            dim.append(elem.ndim)
+        z_samples = models.apply_threshold(z_samples, threshold=threshold,
+                                           keep_dims=False, reorder=True)
+        if [elem.ndim for elem in z_samples] != dim:
+            z_samples = [elem.reshape(-1, 1) for elem in z_samples]
+    thres_latent_dim = z_samples[0].shape[1]
+    if n_samples > 1:
+        z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
+                     for z in z_samples]
     for idx, name in enumerate(modalities):
-        if code[idx].shape[0] == 1:
-            embeddings[f"sMCVAE_{name}"] = code[idx][0]
-        else:
-            print_text(f"{name} latents: {code[idx].shape}")
-            embeddings[f"sMCVAE_{name}"] = code[idx]
+        code = z_samples[idx]
+        embeddings[f"sMCVAE_{name}"] = code
+        if n_samples != 1:
+            print_text(f"{name} latents: {code.shape}")
     return embeddings
 
 
@@ -187,7 +201,7 @@ def get_pls(checkpointfile):
     return models
 
 
-def eval_pls(models, data, modalities):
+def eval_pls(models, data, modalities, n_samples=1):
     """ Evaluate the PLS model.
 
     Parameters
@@ -198,6 +212,8 @@ def eval_pls(models, data, modalities):
         the input data organized by views.
     modalities: list of str
         names of the model input views.
+    n_samples: int, default 1
+        the number of time to sample the posterior.
 
     Returns
     -------
@@ -205,15 +221,50 @@ def eval_pls(models, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
+    if isinstance(models, list):
+        embeddings = multi_eval(eval_pls, models, data, modalities,
+                                n_samples=n_samples)
+        for key in embeddings:
+            print_text(f"{key} latents: {embeddings[key].shape}")
+        return embeddings
+
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    latent = ([], [])
-    for model in models:
-        X_test_r = model.transform(
-            X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
-        latent[1].append(X_test_r[0])
-        latent[0].append(X_test_r[1])
+    X_test_r = models.transform(
+        X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(modalities):
-        code = np.array(latent[idx])
-        print_text(f"{name} latents: {code.shape}")
+        code = np.array(X_test_r[-idx-1])
+        if n_samples != 1:
+            print_text(f"{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
+    return embeddings
+
+
+def multi_eval(eval_func, models, data, modalities, **kwargs):
+    """ Evaluate a list of models.
+
+    Parameters
+    ----------
+    eval_func: evaluation function
+        evaluation function to call
+    models: list of Module
+        input models.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        names of the model input views.
+    kwargs: {n_samples, threshold}
+        optional arguments of the evaluation functions
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = {}
+    for model in models:
+        emb = eval_func(model, data, modalities, **kwargs)
+        for key in emb:
+            if key not in embeddings:
+                embeddings[key] = np.empty((0,) + emb[key].shape)
+            embeddings[key] = np.append(embeddings[key], [emb[key]], axis=0)
     return embeddings
