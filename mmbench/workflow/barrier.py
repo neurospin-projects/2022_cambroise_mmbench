@@ -97,7 +97,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
         eval_kwargs["n_samples"] = 1
-        eval_kwargs["threshold"] = None
+        if name == "sMCVAE":
+            eval_kwargs["threshold"] = None
         models[name] = (_models, params["eval"], eval_kwargs)
     for name, (_models, _, _) in models.items():
         print_text(f"model: {name}")
