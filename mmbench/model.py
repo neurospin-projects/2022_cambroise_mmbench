@@ -53,7 +53,7 @@ def get_mopoe(checkpointfile):
     return models
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, _aff=True):
+def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -75,7 +75,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, _aff=True):
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_mopoe, models, data, modalities,
-                                n_samples=n_samples, _aff=False)
+                                n_samples=n_samples, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
@@ -92,7 +92,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, _aff=True):
         else:
             z_samples = q.sample((n_samples, ))
             code = z_samples.cpu().detach().numpy()
-        if _aff:
+        if _disp:
             print_text(f"{name} latents: {code.shape}")
         embeddings[f"MoPoe_{name}"] = code
     return embeddings
@@ -132,7 +132,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
 
 
 def eval_smcvae(
-        models, data, modalities, threshold=0.2, n_samples=10, _aff=True):
+        models, data, modalities, threshold=0.2, n_samples=10, _disp=True):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -157,7 +157,7 @@ def eval_smcvae(
     if isinstance(models, list):
         embeddings = multi_eval(eval_smcvae, models, data, modalities,
                                 threshold=threshold, n_samples=n_samples,
-                                _aff=False)
+                                _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
@@ -184,7 +184,7 @@ def eval_smcvae(
     for idx, name in enumerate(modalities):
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
-        if _aff:
+        if _disp:
             print_text(f"{name} latents: {code.shape}")
     return embeddings
 
@@ -210,7 +210,7 @@ def get_pls(checkpointfile):
     return models
 
 
-def eval_pls(models, data, modalities, n_samples=1, _aff=True):
+def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     """ Evaluate the PLS model.
 
     Parameters
@@ -232,7 +232,7 @@ def eval_pls(models, data, modalities, n_samples=1, _aff=True):
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_pls, models, data, modalities,
-                                n_samples=n_samples, _aff=False)
+                                n_samples=n_samples, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
@@ -242,7 +242,7 @@ def eval_pls(models, data, modalities, n_samples=1, _aff=True):
         X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(modalities):
         code = np.array(X_test_r[-idx-1])
-        if _aff:
+        if _disp:
             print_text(f"{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings
@@ -279,6 +279,6 @@ def multi_eval(eval_func, models, data, modalities, **kwargs):
     for key in embeddings:
         if embeddings[key].ndim == 4:
             shape = embeddings[key].shape
-            embeddings[key] = embeddings[key].reshape(shape[0]*shape[1],
+            embeddings[key] = embeddings[key].reshape(shape[0] * shape[1],
                                                       shape[2], shape[3])
     return embeddings
