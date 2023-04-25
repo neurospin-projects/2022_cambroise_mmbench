@@ -102,7 +102,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     results_tr = {}
     for name, (model, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
-        if isinstance(model, torch.nn.Module):
+        if (isinstance(model, torch.nn.Module) and not isinstance(model, list)):
             model = model.to(device)
             model.eval()
         with torch.set_grad_enabled(False):

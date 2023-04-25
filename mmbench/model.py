@@ -196,8 +196,8 @@ def eval_pls(models, data, modalities):
     for model in models:
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
-        latent[0].append(X_test_r[0])
-        latent[1].append(X_test_r[1])
+        latent[1].append(X_test_r[0])
+        latent[0].append(X_test_r[1])
     for idx, name in enumerate(modalities):
         code = np.array(latent[idx])
         print_text(f"{name} latents: {code.shape}")
@@ -210,7 +210,7 @@ def get_neuroclav(checkpointfile, n_feats, **kwargs):
 
     Parameters
     ----------
-    checkpointfile: str
+    checkpointfiles: str
         the path to the model weights.
     kwargs: dict
         extra parameters passed to the NeuroCLAV constructor.
@@ -221,14 +221,16 @@ def get_neuroclav(checkpointfile, n_feats, **kwargs):
         the instanciated model.
     """
     from models.mlp import MLP
+    models = []
+    for path in checkpointfile:
+        model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
+        checkpoint = torch.load(path, map_location=torch.device("cpu"))
+        model.load_state_dict(checkpoint)
+        models.append(model)
+    return models
 
-    model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
-    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
-    model.load_state_dict(checkpoint)
-    return model
 
-
-def eval_neuroclav(model, data, modalities):
+def eval_neuroclav(models, data, modalities, n_samples=1):
     """ Evaluate the NeuroCLAV model.
 
     Parameters
@@ -246,9 +248,17 @@ def eval_neuroclav(model, data, modalities):
         the generated latent representations.
     """
     embeddings = {}
+    codes = []
     assert "rois" in modalities  # TODO: use function parameters
     view_data = data["rois"]
-    model.eval()
-    with torch.no_grad():
-        embeddings = model(view_data)
-    return embeddings.cpu().detach().numpy()
+    for model in models:
+        model = model.to("cuda")
+        model.eval()
+        with torch.no_grad():
+            z_samples = model(view_data)
+        code = z_samples.cpu().detach().numpy()
+        codes.append(code)
+    codes = np.array(codes)
+    print_text(f"rois latents: {codes.shape}")
+    embeddings["NeuroCLAV_rois"] = codes
+    return embeddings
