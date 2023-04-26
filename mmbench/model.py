@@ -15,12 +15,12 @@ Define the different models.
 import os
 import torch
 import numpy as np
+from joblib import load
 from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
 from mmbench.color_utils import print_text
-from joblib import load
 
 
 def get_mopoe(checkpointfile):
@@ -248,6 +248,64 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     return embeddings
 
 
+def get_neuroclav(checkpointfile, n_feats, **kwargs):
+    """ Return the NeuroCLAV model.
+
+    Parameters
+    ----------
+    checkpointfiles: str
+        the path to the model weights.
+    kwargs: dict
+        extra parameters passed to the NeuroCLAV constructor.
+
+    Returns
+    -------
+    model: Module
+        the instanciated model.
+    """
+    from models.mlp import MLP
+    models = []
+    for path in checkpointfile:
+        model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
+        checkpoint = torch.load(path, map_location=torch.device("cpu"))
+        model.load_state_dict(checkpoint)
+        models.append(model)
+    return models
+
+
+def eval_neuroclav(models, data, modalities, n_samples=1):
+    """ Evaluate the NeuroCLAV model.
+
+    Parameters
+    ----------
+    model: Module
+        the input model.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        names of the model input views.
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = {}
+    codes = []
+    assert "rois" in modalities  # TODO: use function parameters
+    view_data = data["rois"]
+    for model in models:
+        model = model.to("cuda")
+        model.eval()
+        with torch.no_grad():
+            z_samples = model(view_data)
+        code = z_samples.cpu().detach().numpy()
+        codes.append(code)
+    codes = np.array(codes)
+    print_text(f"rois latents: {codes.shape}")
+    embeddings["NeuroCLAV_rois"] = codes
+    return embeddings
+
 def multi_eval(eval_func, models, data, modalities, **kwargs):
     """ Evaluate a list of models.
 
@@ -359,3 +417,4 @@ def create_keep(model, threshold, ndim):
         n = n + 1
     assert (n < 50)
     return keep, threshold
+

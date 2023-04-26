@@ -147,6 +147,23 @@ mmbench train-smcvae --dataset euaims --datasetdir $DATASETDIR --outdir  $OUTDIR
 --host $HOST
 ```
 
+### Train NeuroCLAV
+
+Perform training on HBN by running the following commands in a shell:
+
+```
+mmbench train-neuroclav --dataset hbn --datasetdir $DATASETDIR --outdir  $OUTDIR
+--fit-lat-dims 20 --n-iter 100
+```
+
+Perform training on EUAIMS by running the following commands in a shell:
+
+```
+mmbench train-neuroclav --dataset euaims --datasetdir $DATASETDIR --outdir  $OUTDIR
+--fit-lat-dims 20 --n-iter 100
+```
+
+
 ### Embeddings
 
 First generate samples using a mmbench sub-command. It will generate a file

@@ -16,14 +16,15 @@ Organize the analysis steps.
 import fire
 import mmbench.workflow as wf1
 import mopoe.workflow as wf2
-import mmbench.baseline as bl1
+import mmbench.baseline as bl
 
 
 fire.Fire({
     "train-mopoe": wf2.train_exp,
     "train-smcvae": wf1.train_smcvae,
     "train-cvae": wf1.train_cvae,
-    "train-pls":bl1.train_pls,
+    "train-pls":bl.train_pls,
+    "train-neuroclav":bl.train_neuroclav,
     "latent": wf1.benchmark_latent_exp,
     "rsa": wf1.benchmark_rsa_exp,
     "pred": wf1.benchmark_pred_exp,
