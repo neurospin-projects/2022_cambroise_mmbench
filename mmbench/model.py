@@ -93,7 +93,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
             z_samples = q.sample((n_samples, ))
             code = z_samples.cpu().detach().numpy()
         if _disp:
-            print_text(f"{name} latents: {code.shape}")
+            print_text(f"MoPoe_{name} latents: {code.shape}")
         embeddings[f"MoPoe_{name}"] = code
     return embeddings
 
@@ -131,8 +131,8 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     return models
 
 
-def eval_smcvae(
-        models, data, modalities, threshold=0.2, n_samples=10, _disp=True):
+def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10,
+                ndim=None, _disp=True):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -157,7 +157,7 @@ def eval_smcvae(
     if isinstance(models, list):
         embeddings = multi_eval(eval_smcvae, models, data, modalities,
                                 threshold=threshold, n_samples=n_samples,
-                                _disp=False)
+                                ndim=ndim, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
@@ -173,8 +173,8 @@ def eval_smcvae(
         dim = []
         for elem in z_samples:
             dim.append(elem.ndim)
-        z_samples = models.apply_threshold(z_samples, threshold=threshold,
-                                           keep_dims=False, reorder=True)
+        z_samples = apply_threshold(models, z_samples, threshold=threshold,
+                                    ndim=ndim, keep_dims=False, reorder=True)
         if [elem.ndim for elem in z_samples] != dim:
             z_samples = [elem.reshape(-1, 1) for elem in z_samples]
     thres_latent_dim = z_samples[0].shape[1]
@@ -185,7 +185,7 @@ def eval_smcvae(
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
         if _disp:
-            print_text(f"{name} latents: {code.shape}")
+            print_text(f"sMCVAE_{name} latents: {code.shape}")
     return embeddings
 
 
@@ -243,7 +243,7 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     for idx, name in enumerate(modalities):
         code = np.array(X_test_r[-idx-1])
         if _disp:
-            print_text(f"{name} latents: {code.shape}")
+            print_text(f"PLS_{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings
 
@@ -282,3 +282,80 @@ def multi_eval(eval_func, models, data, modalities, **kwargs):
             embeddings[key] = embeddings[key].reshape(shape[0] * shape[1],
                                                       shape[2], shape[3])
     return embeddings
+
+
+def apply_threshold(model, z, threshold, keep_dims=True, reorder=False, ndim=None):
+        """ Apply dropout threshold.
+
+        Parameters
+        ----------
+        model: MCVAE
+            input model
+        z: Tensor
+            distribution samples.
+        threshold: float
+            dropout threshold.
+        keep_dims: bool default True
+            dropout lower than threshold is set to 0.
+        reorder: bool default False
+            reorder dropout rates.
+        ndim: int, default None
+            number of dimensions to keep
+
+        Returns
+        -------
+        z_keep: list
+            dropout rates.
+        """
+        assert(threshold <= 1.0)
+        order = torch.argsort(model.dropout).squeeze()
+        keep = (model.dropout < threshold).squeeze()
+        if (ndim is not None and torch.sum(keep).item() != ndim):
+            keep, threshold = create_keep(model, threshold, ndim)
+        z_keep = []
+        for drop in z:
+            if keep_dims:
+                drop[:, ~keep] = 0
+            else:
+                drop = drop[:, keep]
+                order = torch.argsort(
+                    model.dropout[model.dropout < threshold]).squeeze()
+            if reorder:
+                drop = drop[:, order]
+            z_keep.append(drop)
+            del drop
+        return z_keep
+
+
+def create_keep(model, threshold, ndim):
+    """ Create keep list with ndim selected distribution samples.
+
+    Parameters
+    ----------
+    model: MCVAE
+        input model
+    threshold: float
+        initial dropout threshold.
+    ndim: int
+        number of dimensions to keep
+
+    Returns
+    -------
+    keep: list
+        selected distribution samples.
+    threshold: float
+        final dropout threshold.
+    """
+    keep = (model.dropout < threshold).squeeze()
+    n, tmin, tmax = 0, 0, 1
+    while (torch.sum(keep).item() != ndim and n < 50):
+        if torch.sum(keep).item() < ndim:
+            tmin = threshold
+            threshold = (threshold + tmax) / 2
+        else:
+            tmax = threshold
+            threshold = (threshold + tmin) / 2
+        keep = (model.dropout < threshold).squeeze()
+        n = n + 1
+    assert (n < 50)
+    return keep, threshold
