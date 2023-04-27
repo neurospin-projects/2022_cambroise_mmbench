@@ -241,7 +241,7 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     X_test_r = models.transform(
         X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(modalities):
-        code = np.array(X_test_r[-idx-1])
+        code = np.array(X_test_r[-idx - 1])
         if _disp:
             print_text(f"PLS_{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
@@ -299,7 +299,7 @@ def eval_neuroclav(models, data, modalities, n_samples=1, _disp=True):
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
-    
+
     assert "rois" in modalities  # TODO: use function parameters
     view_data = data["rois"]
     with torch.no_grad():
@@ -348,47 +348,49 @@ def multi_eval(eval_func, models, data, modalities, **kwargs):
     return embeddings
 
 
-def apply_threshold(model, z, threshold, keep_dims=True, reorder=False, ndim=None):
-        """ Apply dropout threshold.
+def apply_threshold(model, z, threshold, keep_dims=True, reorder=False,
+                    ndim=None):
+    """ Apply dropout threshold.
 
-        Parameters
-        ----------
-        model: MCVAE
-            input model
-        z: Tensor
-            distribution samples.
-        threshold: float
-            dropout threshold.
-        keep_dims: bool default True
-            dropout lower than threshold is set to 0.
-        reorder: bool default False
-            reorder dropout rates.
-        ndim: int, default None
-            number of dimensions to keep
+    Parameters
+    ----------
+    model: MCVAE
+        input model
+    z: Tensor
+        distribution samples.
+    threshold: float
+        dropout threshold.
+    keep_dims: bool default True
+        dropout lower than threshold is set to 0.
+    reorder: bool default False
+        reorder dropout rates.
+    ndim: int, default None
+        number of dimensions to keep
 
-        Returns
-        -------
-        z_keep: list
-            dropout rates.
-        """
-        assert(threshold <= 1.0)
-        order = torch.argsort(model.dropout).squeeze()
-        keep = (model.dropout < threshold).squeeze()
-        if (ndim is not None and torch.sum(keep).item() != ndim):
-            keep, threshold = create_keep(model, threshold, ndim)
-        z_keep = []
-        for drop in z:
-            if keep_dims:
-                drop[:, ~keep] = 0
-            else:
-                drop = drop[:, keep]
-                order = torch.argsort(
-                    model.dropout[model.dropout < threshold]).squeeze()
-            if reorder:
-                drop = drop[:, order]
-            z_keep.append(drop)
-            del drop
-        return z_keep
+    Returns
+    -------
+    z_keep: list
+        dropout rates.
+    """
+    assert 0 < threshold <= 1.0, (
+        f"the threshold ({threshold}) must be between 0 and 1")
+    order = torch.argsort(model.dropout).squeeze()
+    keep = (model.dropout < threshold).squeeze()
+    if (ndim is not None and torch.sum(keep).item() != ndim):
+        keep, threshold = create_keep(model, threshold, ndim)
+    z_keep = []
+    for drop in z:
+        if keep_dims:
+            drop[:, ~keep] = 0
+        else:
+            drop = drop[:, keep]
+            order = torch.argsort(
+                model.dropout[model.dropout < threshold]).squeeze()
+        if reorder:
+            drop = drop[:, order]
+        z_keep.append(drop)
+        del drop
+    return z_keep
 
 
 def create_keep(model, threshold, ndim):
@@ -423,4 +425,3 @@ def create_keep(model, threshold, ndim):
         n = n + 1
     assert (n < 50)
     return keep, threshold
-
