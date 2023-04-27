@@ -99,7 +99,6 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         eval_kwargs["n_samples"] = 1
         eval_kwargs["_disp"] = False
         if name == "sMCVAE":
-#            eval_kwargs["ndim"] = 3
             eval_kwargs["threshold"] = None
         models[name] = (_models, params["eval"], eval_kwargs)
     for name, (_models, _, _) in models.items():

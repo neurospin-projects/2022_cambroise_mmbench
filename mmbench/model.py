@@ -265,15 +265,17 @@ def get_neuroclav(checkpointfile, n_feats, **kwargs):
     """
     from models.mlp import MLP
     models = []
-    for path in checkpointfile:
+    if not isinstance(checkpointfile, (list, tuple)):
+        checkpointfile = [checkpointfile]
+    for file in checkpointfile:
         model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
-        checkpoint = torch.load(path, map_location=torch.device("cpu"))
+        checkpoint = torch.load(file, map_location=torch.device("cpu"))
         model.load_state_dict(checkpoint)
         models.append(model)
     return models
 
 
-def eval_neuroclav(models, data, modalities, n_samples=1):
+def eval_neuroclav(models, data, modalities, n_samples=1, _disp=True):
     """ Evaluate the NeuroCLAV model.
 
     Parameters
@@ -291,20 +293,24 @@ def eval_neuroclav(models, data, modalities, n_samples=1):
         the generated latent representations.
     """
     embeddings = {}
-    codes = []
+    if isinstance(models, list):
+        embeddings = multi_eval(eval_neuroclav, models, data, modalities,
+                                n_samples=n_samples, _disp=False)
+        for key in embeddings:
+            print_text(f"{key} latents: {embeddings[key].shape}")
+        return embeddings
+    
     assert "rois" in modalities  # TODO: use function parameters
     view_data = data["rois"]
-    for model in models:
-        model = model.to("cuda")
-        model.eval()
-        with torch.no_grad():
-            z_samples = model(view_data)
-        code = z_samples.cpu().detach().numpy()
-        codes.append(code)
-    codes = np.array(codes)
-    print_text(f"rois latents: {codes.shape}")
-    embeddings["NeuroCLAV_rois"] = codes
+    with torch.no_grad():
+        z_samples = models(view_data)
+    code = z_samples.cpu().detach().numpy()
+    code = np.array(code)
+    if _disp:
+        print_text(f"NeuroCLAV_rois latents: {code.shape}")
+    embeddings["NeuroCLAV_rois"] = code
     return embeddings
+
 
 def multi_eval(eval_func, models, data, modalities, **kwargs):
     """ Evaluate a list of models.
