@@ -28,16 +28,60 @@ from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
 
 
-def get_train_data(dataset, datasetdir, modalities):
+def get_train_data(dataset, datasetdir, modalities, threshold=75):
     """ See `get_data` for documentation.
     """
-    return get_data(dataset, datasetdir, modalities, dtype="train")
+    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="train")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
 
 
-def get_test_data(dataset, datasetdir, modalities):
+def get_test_data(dataset, datasetdir, modalities, threshold=75):
     """ See `get_data` for documentation.
     """
-    return get_data(dataset, datasetdir, modalities, dtype="test")
+    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="test")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
+
+
+def iq_threshold(dataset, data, meta_df, threshold=75):
+    """ Remove subjects with IQ below the threshold.
+
+    Parameters
+    ----------
+    data: dict
+        the loaded data for each modality.
+    metadata: DataFrame
+        the associated meta information.
+    threshold: int, default 75
+        The lower IQ threshold
+
+    Returns
+    -------
+    data: dict
+        the loaded data thresholded for each modality.
+    metadata: DataFrame
+        the associated meta information.
+    """
+    if (dataset != 'euaims' or threshold is None):
+        return data, meta_df
+    assert ("fsiq" in meta_df.columns and "asd" in meta_df.columns), ("test")
+    idx = meta_df["fsiq"].values > threshold
+    meta_df = meta_df.loc[idx]
+    for key, arr in data.items():
+        dim = arr.shape
+        if key == "index":
+            mask = torch.tensor(idx)
+            arr = torch.masked_select(arr, mask)
+        else:
+            mask = torch.reshape(torch.tensor(idx),
+                                 (dim[0], 1)).clone().detach()
+            mask = mask.repeat(1, dim[1]).clone().detach()
+            arr = torch.masked_select(arr, mask)
+            arr = torch.reshape(
+                arr, (int(arr.shape[0] / dim[1]), dim[1])).clone().detach()
+        data[key] = arr
+    return data, meta_df
 
 
 def get_data(dataset, datasetdir, modalities, dtype):

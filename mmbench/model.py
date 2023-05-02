@@ -248,13 +248,15 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     return embeddings
 
 
-def get_neuroclav(checkpointfile, n_feats, **kwargs):
+def get_neuroclav(checkpointfile, layers, **kwargs):
     """ Return the NeuroCLAV model.
 
     Parameters
     ----------
     checkpointfiles: str
         the path to the model weights.
+    layers: a list of int
+        a parameter passed to the NeuroCLAV constructor.
     kwargs: dict
         extra parameters passed to the NeuroCLAV constructor.
 
@@ -268,7 +270,7 @@ def get_neuroclav(checkpointfile, n_feats, **kwargs):
     if not isinstance(checkpointfile, (list, tuple)):
         checkpointfile = [checkpointfile]
     for file in checkpointfile:
-        model = MLP(layers=(444, 256, 20))  # TODO: use function parameters
+        model = MLP(layers=layers)
         checkpoint = torch.load(file, map_location=torch.device("cpu"))
         model.load_state_dict(checkpoint)
         models.append(model)
