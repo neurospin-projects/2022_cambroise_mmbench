@@ -16,7 +16,7 @@ import os
 import copy
 from pprint import pprint
 import numpy as np
-import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn import metrics as skmetrics
 import torch
 from mmbench.config import ConfigParser
@@ -25,10 +25,11 @@ from mmbench.color_utils import (
 from mmbench.dataset import get_test_data, get_train_data
 from mmbench.workflow.predict import get_predictor
 from brainboard.metric import eval_interpolation
+from mmbench.plotting import plot_curve
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
-                          downstream_name):
+                          downstream_name, n_coeffs=10):
     """ Compare the performance barrier interpolating the weights of any two
     pairs of intances of the same network and monitoring a common downstream
     task.
@@ -53,6 +54,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     downstream_name: str
         the name of the column that contains the downstream classification
         task.
+    n_coeffs: int, default 10
+        number of interpolation points
     """
     print_title(f"COMPARE MODEL WEIGHTS: {dataset}")
     benchdir = outdir
@@ -135,21 +138,56 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         n_models = len(_models)
         iu = np.array(np.triu_indices(n_models, k=0)).T
         mat = np.zeros((n_models, n_models))
+        points_curve = np.zeros((n_models, n_models, n_coeffs))
         for i1, i2 in iu:
             model1 = _models[i1].to(device).eval()
             model2 = _models[i2].to(device).eval()
             state1 = model1.state_dict()
             state2 = model2.state_dict()
             coeffs, metrics = eval_interpolation(
-                model1, state1, state2, [data_train, data_test], eval_fn,
-                n_coeffs=10, eval_kwargs=kwargs)
-            print(coeffs)
-            print(metrics)
+                copy.deepcopy(model1), state1, state2, [data_train, data_test],
+                eval_fn, n_coeffs=n_coeffs, eval_kwargs=kwargs)
+            points_curve[i1, i2] = metrics
+            points_curve[i2, i1] = metrics[::-1]
             mat[i1, i2] = np.trapz(metrics, coeffs)
             mat[i2, i1] = mat[i1, i2]
+        barrier_display(coeffs, points_curve, f"{name} {downstream_name}",
+                        benchdir)
         print(mat)
         results_test[name] = mat
 
     barrier_file = os.path.join(benchdir, f"barrier_interp_{dataset}.npz")
     np.savez_compressed(barrier_file, **results_test)
     print_result(f"barrier interpolation: {barrier_file}")
+
+
+def barrier_display(coeffs,l_metrics, model_name, outdir):
+    """ Save barrier curves for a model
+
+    Parameters
+    ----------
+    coeffs : list
+        the abscissa of the graph.
+    l_metrics : array (n, n, n_coeffs)
+        value matrix of the curve between two models.
+    model_name : str
+        name of the model.
+    outdir : str
+        the destination folder.
+    """
+    print_subtitle(f"Display {model_name} figures...")
+    ncols = 3
+    nrows = 4
+    plt.figure(figsize=np.array((ncols, nrows)) * 4)
+    for idx, row in enumerate(l_metrics):
+        ax = plt.subplot(nrows, ncols, idx + 1)
+        plot_curve(
+            coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
+            fontweight="bold", title=f"{idx + 1}")
+
+    plt.subplots_adjust(
+        left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
+    plt.suptitle(f"{model_name} BARRIER FIGURES", fontsize=20, y=.95)
+    filename = os.path.join(outdir, f"barrier_{model_name}.png")
+    plt.savefig(filename)
+    print_result(f"BARRIER: {filename}")

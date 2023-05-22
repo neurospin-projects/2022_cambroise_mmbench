@@ -213,3 +213,41 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
             annotator.annotate()
 
     return pairwise_stat_df
+
+
+def plot_curve(x_data, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
+             fontweight="bold", title=None):
+    """ Display a list of curve.
+
+    Parameters
+    ----------
+    x_data: list
+        the abscissa of the graph.
+    mat: array (n_curve, n_points)
+        the matrix containing ordinates of each curve.
+    ax: matplotlib.axes.Axes, default None
+        the axes used to display the plot.
+    figsize: (float, float), default (5, 2)
+        width, height in inches.
+    dpi: float, default 300
+        the resolution of the figure in dots-per-inch.
+    fontsize: int or str, default 16
+        size in points or relative size, e.g., 'smaller', 'x-large'.
+    fontweight: str, default 'bold'
+        the font weight, e.g. 'normal', 'bold', 'heavy', 'light', 'ultrabold'
+        or 'ultralight'.
+    title: str, default None
+        the title displayed on the figure.
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
+    for idx, elem in enumerate(mat):
+        ax.plot(x_data,elem, label=f"{idx+1}")
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    if title is None:
+        plt.title(x_data, fontsize=fontsize * 1.5, pad=2,
+                  fontweight=fontweight)
+    else:
+        plt.title(title, fontsize=fontsize * 1.5, pad=2, fontweight=fontweight)
