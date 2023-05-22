@@ -28,7 +28,7 @@ from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
 
 
-def get_train_data(dataset, datasetdir, modalities, threshold=75):
+def get_train_data(dataset, datasetdir, modalities, threshold=80):
     """ See `get_data` for documentation.
     """
     data, meta_df = get_data(dataset, datasetdir, modalities, dtype="train")
@@ -36,7 +36,7 @@ def get_train_data(dataset, datasetdir, modalities, threshold=75):
     return data, meta_df
 
 
-def get_test_data(dataset, datasetdir, modalities, threshold=75):
+def get_test_data(dataset, datasetdir, modalities, threshold=80):
     """ See `get_data` for documentation.
     """
     data, meta_df = get_data(dataset, datasetdir, modalities, dtype="test")
@@ -44,7 +44,7 @@ def get_test_data(dataset, datasetdir, modalities, threshold=75):
     return data, meta_df
 
 
-def iq_threshold(dataset, data, meta_df, threshold=75):
+def iq_threshold(dataset, data, meta_df, threshold=80):
     """ Remove subjects with IQ below the threshold.
 
     Parameters
@@ -53,7 +53,7 @@ def iq_threshold(dataset, data, meta_df, threshold=75):
         the loaded data for each modality.
     metadata: DataFrame
         the associated meta information.
-    threshold: int, default 75
+    threshold: int, default 80
         The lower IQ threshold
 
     Returns
