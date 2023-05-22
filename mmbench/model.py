@@ -90,7 +90,7 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
         device = data["clinical"].device
         dtype = data["clinical"].dtype
         data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
-        data["clinical"] = data["clinical"].to(device, dtype = dtype)
+        data["clinical"] = data["clinical"].to(device, dtype=dtype)
     inf_data = models.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
@@ -161,7 +161,7 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
     n_samples: int, default 1
         the number of time to sample the posterior.
     zeros_clinical: bool, default Fasle
-        does nothing here
+        causes the zeros of the clinical data, put to true to make a transfer
     _disp: bool, default True
         allows display in the terminal
 
@@ -174,11 +174,17 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
     if isinstance(models, list):
         embeddings = multi_eval(eval_smcvae, models, data, modalities,
                                 threshold=threshold, n_samples=n_samples,
-                                ndim=ndim, _disp=False)
+                                ndim=ndim, zeros_clinical=zeros_clinical,
+                                _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
 
+    if zeros_clinical:
+        device = data["clinical"].device
+        dtype = data["clinical"].dtype
+        data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
+        data["clinical"] = data["clinical"].to(device, dtype = dtype)
     latents = models.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
@@ -199,6 +205,8 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
         z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
                      for z in z_samples]
     for idx, name in enumerate(modalities):
+        if (zeros_clinical and name == "clinical"):
+            continue
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
         if _disp:
