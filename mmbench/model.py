@@ -53,7 +53,8 @@ def get_mopoe(checkpointfile):
     return models
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
+def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
+               _disp=True):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -64,8 +65,12 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
+    n_samples: int, default 1
         the number of time to sample the posterior.
+    zeros_clinical: bool, default Fasle
+        causes the zeros of the clinical data, put to true to make a transfer
+    _disp: bool, default True
+        allows display in the terminal
 
     Returns
     -------
@@ -75,15 +80,23 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_mopoe, models, data, modalities,
-                                n_samples=n_samples, _disp=False)
+                                n_samples=n_samples,
+                                zeros_clinical=zeros_clinical, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
 
+    if zeros_clinical:
+        device = data["clinical"].device
+        dtype = data["clinical"].dtype
+        data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
+        data["clinical"] = data["clinical"].to(device, dtype=dtype)
     inf_data = models.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     for idx, name in enumerate(modalities + ["joint"]):
+        if (zeros_clinical and name == "clinical"):
+            continue
         z_mu, z_logvar = latents[idx]
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
@@ -131,8 +144,8 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     return models
 
 
-def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10,
-                ndim=None, _disp=True):
+def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
+                ndim=None, zeros_clinical=False, _disp=True):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -145,8 +158,12 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10,
         names of the model input views.
     threshold: float, default 0.2
         value for thresholding
-    n_samples: int, default 10
+    n_samples: int, default 1
         the number of time to sample the posterior.
+    zeros_clinical: bool, default Fasle
+        causes the zeros of the clinical data, put to true to make a transfer
+    _disp: bool, default True
+        allows display in the terminal
 
     Returns
     -------
@@ -157,11 +174,17 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10,
     if isinstance(models, list):
         embeddings = multi_eval(eval_smcvae, models, data, modalities,
                                 threshold=threshold, n_samples=n_samples,
-                                ndim=ndim, _disp=False)
+                                ndim=ndim, zeros_clinical=zeros_clinical,
+                                _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
 
+    if zeros_clinical:
+        device = data["clinical"].device
+        dtype = data["clinical"].dtype
+        data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
+        data["clinical"] = data["clinical"].to(device, dtype = dtype)
     latents = models.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
@@ -182,6 +205,8 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=10,
         z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
                      for z in z_samples]
     for idx, name in enumerate(modalities):
+        if (zeros_clinical and name == "clinical"):
+            continue
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
         if _disp:
@@ -210,7 +235,8 @@ def get_pls(checkpointfile):
     return models
 
 
-def eval_pls(models, data, modalities, n_samples=1, _disp=True):
+def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
+             _disp=True):
     """ Evaluate the PLS model.
 
     Parameters
@@ -223,6 +249,11 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
         names of the model input views.
     n_samples: int, default 1
         the number of time to sample the posterior.
+    zeros_clinical: bool, default Fasle
+        causes the deletion of the clinical data,
+        put to true to make a transfer
+    _disp: bool, default True
+        allows display in the terminal
 
     Returns
     -------
@@ -232,16 +263,22 @@ def eval_pls(models, data, modalities, n_samples=1, _disp=True):
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_pls, models, data, modalities,
-                                n_samples=n_samples, _disp=False)
+                                n_samples=n_samples, 
+                                zeros_clinical=zeros_clinical, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
 
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    X_test_r = models.transform(
-        X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
-    for idx, name in enumerate(modalities):
-        code = np.array(X_test_r[-idx - 1])
+    if zeros_clinical:
+        X_test_r = [models.transform(X_test.cpu().detach().numpy())]
+    else:
+        X_test_r = models.transform(
+            X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
+    for idx, name in enumerate(reversed(modalities)):
+        if (zeros_clinical and name == "clinical"):
+            continue
+        code = np.array(X_test_r[idx])
         if _disp:
             print_text(f"PLS_{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
@@ -277,7 +314,8 @@ def get_neuroclav(checkpointfile, layers, **kwargs):
     return models
 
 
-def eval_neuroclav(models, data, modalities, n_samples=1, _disp=True):
+def eval_neuroclav(models, data, modalities, n_samples=1, zeros_clinical=False,
+                   _disp=True):
     """ Evaluate the NeuroCLAV model.
 
     Parameters
@@ -288,6 +326,10 @@ def eval_neuroclav(models, data, modalities, n_samples=1, _disp=True):
         the input data organized by views.
     modalities: list of str
         names of the model input views.
+    zeros_clinical: bool, default Fasle
+        causes the deletion of the clinical data, does nothing here
+    _disp: bool, default True
+        allows display in the terminal
 
     Returns
     -------
@@ -297,12 +339,13 @@ def eval_neuroclav(models, data, modalities, n_samples=1, _disp=True):
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_neuroclav, models, data, modalities,
-                                n_samples=n_samples, _disp=False)
+                                n_samples=n_samples,
+                                zeros_clinical=zeros_clinical, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
         return embeddings
 
-    assert "rois" in modalities  # TODO: use function parameters
+    assert "rois" in modalities
     view_data = data["rois"]
     with torch.no_grad():
         z_samples = models(view_data)
