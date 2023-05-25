@@ -156,7 +156,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         print(mat)
         results_test[name] = mat
 
-    barrier_file = os.path.join(benchdir, f"barrier_interp_{dataset}.npz")
+    barrier_file = os.path.join(
+            benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
     np.savez_compressed(barrier_file, **results_test)
     print_result(f"barrier interpolation: {barrier_file}")
 
