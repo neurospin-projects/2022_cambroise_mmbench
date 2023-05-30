@@ -184,7 +184,7 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
         device = data["clinical"].device
         dtype = data["clinical"].dtype
         data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
-        data["clinical"] = data["clinical"].to(device, dtype = dtype)
+        data["clinical"] = data["clinical"].to(device, dtype=dtype)
     latents = models.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
@@ -263,7 +263,7 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
     embeddings = {}
     if isinstance(models, list):
         embeddings = multi_eval(eval_pls, models, data, modalities,
-                                n_samples=n_samples, 
+                                n_samples=n_samples,
                                 zeros_clinical=zeros_clinical, _disp=False)
         for key in embeddings:
             print_text(f"{key} latents: {embeddings[key].shape}")
