@@ -157,12 +157,12 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         results_test[name] = mat
 
     barrier_file = os.path.join(
-            benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
+        benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
     np.savez_compressed(barrier_file, **results_test)
     print_result(f"barrier interpolation: {barrier_file}")
 
 
-def barrier_display(coeffs,l_metrics, model_name, outdir):
+def barrier_display(coeffs, l_metrics, model_name, outdir):
     """ Save barrier curves for a model
 
     Parameters

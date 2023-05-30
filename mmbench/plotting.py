@@ -216,7 +216,7 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 
 
 def plot_curve(x_data, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
-             fontweight="bold", title=None):
+               fontweight="bold", title=None):
     """ Display a list of curve.
 
     Parameters
@@ -242,7 +242,7 @@ def plot_curve(x_data, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
     for idx, elem in enumerate(mat):
-        ax.plot(x_data,elem, label=f"{idx+1}")
+        ax.plot(x_data, elem, label=f"{idx+1}")
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
