@@ -155,8 +155,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         vmax = np.max(points_curve)
         vmin = np.min(points_curve)
         y_axes = [vmin - 0.05 * (vmax - vmin), vmax + 0.05 * (vmax - vmin)]
-        barrier_display(coeffs, points_curve, f"{name} {downstream_name}",
-                        benchdir, y_axes)
+        barrier_display(coeffs, points_curve, f"{name}_{downstream_name}",
+                        dataset, benchdir, y_axes)
         min_val = np.min(mat)
         max_val = np.max(mat)
         if scale[0] > min_val:
@@ -166,14 +166,14 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         print(mat)
         results_test[name] = mat
 
-    mat_display(results_test, dataset, outdir, scale)
+    mat_display(results_test, dataset, outdir, downstream_name, scale)
     barrier_file = os.path.join(
         benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
     np.savez_compressed(barrier_file, **results_test)
     print_result(f"barrier interpolation: {barrier_file}")
 
 
-def barrier_display(coeffs, l_metrics, model_name, outdir, scale):
+def barrier_display(coeffs, l_metrics, model_name, dataset, outdir, scale):
     """ Save barrier curves for a model
 
     Parameters
@@ -184,6 +184,8 @@ def barrier_display(coeffs, l_metrics, model_name, outdir, scale):
         value matrix of the curve between two models.
     model_name : str
         name of the model.
+    dataset: str
+        the dataset name: euaims or hbn.
     outdir : str
         the destination folder.
     scale : tuple (min, max)
@@ -203,12 +205,12 @@ def barrier_display(coeffs, l_metrics, model_name, outdir, scale):
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
     plt.suptitle(f"{model_name} BARRIER FIGURES", fontsize=20, y=.95)
-    filename = os.path.join(outdir, f"barrier_{model_name}.png")
+    filename = os.path.join(outdir, f"barrier_{model_name}_{dataset}.png")
     plt.savefig(filename)
     print_result(f"BARRIER: {filename}")
 
 
-def mat_display(matrices, dataset, outdir, scale):
+def mat_display(matrices, dataset, outdir, downstream_name, scale):
     """ Plot area matrices
     
     Parameters
@@ -219,6 +221,9 @@ def mat_display(matrices, dataset, outdir, scale):
         the dataset name: euaims or hbn.
     outdir : str
         the destination folder.
+    downstream_name: str
+        the name of the column that contains the downstream classification
+        task.
     scale : tuple (min, max)
         min and max values of matrix in matrices     
     """
@@ -235,6 +240,6 @@ def mat_display(matrices, dataset, outdir, scale):
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset} BARRIER AREA", fontsize=20, y=.95)
-    filename = os.path.join(outdir, f"barrier_area_{dataset}.png")
+    filename = os.path.join(outdir, f"barrier_area_{downstream_name}_{dataset}.png")
     plt.savefig(filename)
     print_result(f"AREA: {filename}")
