@@ -89,19 +89,24 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
     if zeros_clinical:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
-        data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
+        data["clinical"] = torch.from_numpy(np.full(data["clinical"].shape, np.nan))
         data["clinical"] = data["clinical"].to(device, dtype=dtype)
     inf_data = models.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     key = "MoPoe"
     for idx, name in enumerate(modalities + ["joint"]):
-        if (zeros_clinical and name == "clinical"):
-            continue
         z_mu, z_logvar = latents[idx]
         if z_mu is None:
             key = "MoPoeT"
             continue
+        if zeros_clinical:
+            if name == "clinical":
+                continue
+            if name == "joint":
+                nan_indices = torch.any(torch.isnan(z_mu), dim=1)
+                z_mu[nan_indices] = z_mu[~nan_indices].mean()
+                z_logvar[nan_indices] = z_logvar[~nan_indices].mean()
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
             z_samples = q.loc
