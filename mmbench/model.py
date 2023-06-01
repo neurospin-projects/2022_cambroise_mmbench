@@ -89,8 +89,6 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
         if z_mu is None:
             key = "MoPoeT"
             continue
-        if (zeros_clinical and name == "clinical"):
-            continue
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
             z_samples = q.loc
