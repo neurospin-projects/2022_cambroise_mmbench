@@ -83,8 +83,14 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
     inf_data = models.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
+    key = "MoPoe"
     for idx, name in enumerate(modalities + ["joint"]):
         z_mu, z_logvar = latents[idx]
+        if z_mu is None:
+            key = "MoPoeT"
+            continue
+        if (zeros_clinical and name == "clinical"):
+            continue
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
             z_samples = q.loc
@@ -93,8 +99,8 @@ def eval_mopoe(models, data, modalities, n_samples=10, _disp=True):
             z_samples = q.sample((n_samples, ))
             code = z_samples.cpu().detach().numpy()
         if _disp:
-            print_text(f"MoPoe_{name} latents: {code.shape}")
-        embeddings[f"MoPoe_{name}"] = code
+            print_text(f"{key}_{name} latents: {code.shape}")
+        embeddings[f"{key}_{name}"] = code
     return embeddings
 
 
