@@ -23,7 +23,7 @@ from scipy.stats import ttest_ind as ttest
 
 
 def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
-             fontweight="bold", title=None):
+             fontweight="bold", title=None, vmin=None, vmax=None):
     """ Display a mat array.
 
     Parameters
@@ -48,7 +48,7 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     """
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
-    ax.imshow(mat, aspect="auto", cmap="Reds")
+    ax.imshow(mat, aspect="auto", cmap="Reds", vmin=vmin, vmax=vmax)
     if title is None:
         plt.title(key, fontsize=fontsize * 1.5, pad=2, fontweight=fontweight)
     else:

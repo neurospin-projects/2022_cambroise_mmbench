@@ -25,7 +25,7 @@ from mmbench.color_utils import (
 from mmbench.dataset import get_test_data, get_train_data
 from mmbench.workflow.predict import get_predictor
 from brainboard.metric import eval_interpolation
-from mmbench.plotting import plot_curve
+from mmbench.plotting import plot_curve, plot_mat
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
@@ -129,6 +129,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         return scorer(clf, X_test, y_test)
 
     results_test = {}
+    scale = [100, -100]
     for name, (_models, eval_fct, eval_kwargs) in models.items():
         if not isinstance(_models[0], torch.nn.Module):
             continue
@@ -151,18 +152,28 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
             points_curve[i2, i1] = metrics[::-1]
             mat[i1, i2] = np.trapz(metrics, coeffs)
             mat[i2, i1] = mat[i1, i2]
+        vmax = np.max(points_curve)
+        vmin = np.min(points_curve)
+        y_axes = [vmin - 0.05 * (vmax - vmin), vmax + 0.05 * (vmax - vmin)]
         barrier_display(coeffs, points_curve, f"{name} {downstream_name}",
-                        benchdir)
+                        benchdir, y_axes)
+        min_val = np.min(mat)
+        max_val = np.max(mat)
+        if scale[0] > min_val:
+            scale[0] = min_val
+        if scale[1] < max_val:
+            scale[1] = max_val
         print(mat)
         results_test[name] = mat
 
+    mat_display(results_test, dataset, outdir, scale)
     barrier_file = os.path.join(
         benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
     np.savez_compressed(barrier_file, **results_test)
     print_result(f"barrier interpolation: {barrier_file}")
 
 
-def barrier_display(coeffs, l_metrics, model_name, outdir):
+def barrier_display(coeffs, l_metrics, model_name, outdir, scale):
     """ Save barrier curves for a model
 
     Parameters
@@ -175,6 +186,8 @@ def barrier_display(coeffs, l_metrics, model_name, outdir):
         name of the model.
     outdir : str
         the destination folder.
+    scale : tuple (min, max)
+        min and max values of matrix in matrices
     """
     print_subtitle(f"Display {model_name} figures...")
     ncols = 3
@@ -185,6 +198,7 @@ def barrier_display(coeffs, l_metrics, model_name, outdir):
         plot_curve(
             coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
             fontweight="bold", title=f"{idx + 1}")
+        ax.set_ylim(scale[0], scale[1])
 
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
@@ -192,3 +206,35 @@ def barrier_display(coeffs, l_metrics, model_name, outdir):
     filename = os.path.join(outdir, f"barrier_{model_name}.png")
     plt.savefig(filename)
     print_result(f"BARRIER: {filename}")
+
+
+def mat_display(matrices, dataset, outdir, scale):
+    """ Plot area matrices
+    
+    Parameters
+    ----------
+    matrices : dict
+        Area matrix dictionaries by models.
+    dataset: str
+        the dataset name: euaims or hbn.
+    outdir : str
+        the destination folder.
+    scale : tuple (min, max)
+        min and max values of matrix in matrices     
+    """
+    ncols = 2
+    nrows = 3
+    plt.figure(figsize=np.array((ncols, nrows)) * 4)
+    for idx, key in enumerate(matrices):
+        ax = plt.subplot(nrows, ncols, idx + 1)
+        plot_mat(
+            key, matrices[key], ax=ax, figsize=None, dpi=300, fontsize=7,
+            fontweight="bold", title=f"{key}", vmin=scale[0], vmax=scale[1])
+        plt.axis('off')
+        plt.colorbar(ax.images[0], ax=ax)
+    plt.subplots_adjust(
+        left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
+    plt.suptitle(f"{dataset} BARRIER AREA", fontsize=20, y=.95)
+    filename = os.path.join(outdir, f"barrier_area_{dataset}.png")
+    plt.savefig(filename)
+    print_result(f"AREA: {filename}")
