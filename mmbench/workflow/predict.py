@@ -90,13 +90,12 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             samples_train = latent_data_train[latent_key]
             samples_test = latent_data_test[latent_key]
             for idx in tqdm(range(n_samples)):
-                clf, scoring = get_predictor(y_train)
+                clf, scorer = get_predictor(y_train)
                 scores = cross_val_score(
-                    clf, samples_train[idx], y_train, cv=5, scoring=scoring,
+                    clf, samples_train[idx], y_train, cv=5, scoring=scorer,
                     n_jobs=-1)
                 clf.fit(samples_train[idx], y_train)
                 res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
-                scorer = metrics.get_scorer(scoring)
                 res.append(scorer(clf, samples_test[idx], y_test))
             res_cv_df = pd.DataFrame.from_dict(
                 {"model": range(n_samples), "score": res_cv})
@@ -154,7 +153,7 @@ def get_predictor(data):
     -------
     predictor: linear_model
         A classifier or a regressor
-    scoring: str or callable
+    scorer: callable
         a scorer callable object/function with signature which returns a
         single value.
     """
@@ -163,8 +162,9 @@ def get_predictor(data):
               if not isinstance(data[0], str) else False)
     if isinstance(data[0], str) or is_int:
         predictor = linear_model.RidgeClassifier()
-        scoring = "balanced_accuracy"
+        scorer = metrics.get_scorer("balanced_accuracy")
     else:
         predictor = linear_model.Ridge(alpha=.5)
-        scoring = "neg_mean_absolute_error"
-    return predictor, scoring
+        scorer = metrics.get_scorer("neg_mean_absolute_error")
+        scorer = metrics.make_scorer(scorer._score_func, greater_is_better=True)
+    return predictor, scorer
