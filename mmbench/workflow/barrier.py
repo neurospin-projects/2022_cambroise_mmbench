@@ -24,6 +24,7 @@ from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data, get_train_data
 from mmbench.workflow.predict import get_predictor
+from mmbench.model import get_models
 from brainboard.metric import eval_interpolation
 
 
@@ -66,7 +67,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_text(f"modalities: {modalities}")
     data_train, meta_train_df = get_train_data(dataset, datasetdir, modalities)
     assert downstream_name in meta_train_df.columns, (
-        f"Expect downstream_name in {meta_train_df.columns}")
+        f"Specify a downstream task from: {meta_train_df.columns}")
     data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
     y_train = meta_train_df[downstream_name]
     y_test = meta_test_df[downstream_name]
@@ -92,12 +93,13 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if not isinstance(checkpoints, (list, tuple)):
             continue
-        _models = params["get"](
+        _models = get_models(
+            params["get"],
             **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
         eval_kwargs["n_samples"] = 1
-        eval_kwargs["_disp"] = False
+        eval_kwargs["verbose"] = 0
         if name == "sMCVAE":
             eval_kwargs["threshold"] = None
         models[name] = (_models, params["eval"], eval_kwargs)

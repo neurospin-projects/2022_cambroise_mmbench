@@ -26,26 +26,36 @@ except:
     ContrastiveDataset = object
 from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
+from mmbench.color_utils import print_text
 
 
-def get_train_data(dataset, datasetdir, modalities, threshold=80):
-    """ See `get_data` for documentation.
+# Global parameters
+IQ_MAP = {
+    "euaims": 80.,
+    "hbn": None
+}
+
+
+def get_train_data(dataset, datasetdir, modalities):
+    """ See `get_data` and `iq_threshold` for documentation.
     """
+    threshold = IQ_MAP.get(dataset)
     data, meta_df = get_data(dataset, datasetdir, modalities, dtype="train")
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
 
-def get_test_data(dataset, datasetdir, modalities, threshold=80):
-    """ See `get_data` for documentation.
+def get_test_data(dataset, datasetdir, modalities):
+    """ See `get_data` and `iq_threshold` for documentation.
     """
+    threshold = IQ_MAP.get(dataset)
     data, meta_df = get_data(dataset, datasetdir, modalities, dtype="test")
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
 
-def iq_threshold(dataset, data, meta_df, threshold=80):
-    """ Remove subjects with IQ below the threshold.
+def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
+    """ Remove subjects with IQ below a user-defined threshold.
 
     Parameters
     ----------
@@ -54,33 +64,26 @@ def iq_threshold(dataset, data, meta_df, threshold=80):
     metadata: DataFrame
         the associated meta information.
     threshold: int, default 80
-        The lower IQ threshold
+        the minimum IQ. If None no thresholding is applied.
+    col_name: str, default 'fsiq'
+        the name of the column containing the IQ information.
 
     Returns
     -------
     data: dict
         the loaded data thresholded for each modality.
-    metadata: DataFrame
+    meta_df: DataFrame
         the associated meta information.
     """
-    if (dataset != 'euaims' or threshold is None):
+    if threshold is None:
         return data, meta_df
-    assert ("fsiq" in meta_df.columns and "asd" in meta_df.columns), ("test")
-    idx = meta_df["fsiq"].values > threshold
-    meta_df = meta_df.loc[idx]
-    for key, arr in data.items():
-        dim = arr.shape
-        if key == "index":
-            mask = torch.tensor(idx)
-            arr = torch.masked_select(arr, mask)
-        else:
-            mask = torch.reshape(torch.tensor(idx),
-                                 (dim[0], 1)).clone().detach()
-            mask = mask.repeat(1, dim[1]).clone().detach()
-            arr = torch.masked_select(arr, mask)
-            arr = torch.reshape(
-                arr, (int(arr.shape[0] / dim[1]), dim[1])).clone().detach()
-        data[key] = arr
+    assert col_name in meta_df.columns, "Can't find the given IQ column name."
+    indices = meta_df[col_name].values > threshold
+    print_text(f"Filtering data: {np.sum(indices)}/{len(meta_df)}")
+    meta_df = meta_df.loc[indices]
+    indices = torch.argwhere(torch.from_numpy(indices)).flatten()
+    for key, tensor in data.items():
+        data[key] = torch.index_select(tensor, 0, indices)
     return data, meta_df
 
 
