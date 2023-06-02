@@ -26,18 +26,65 @@ except:
     ContrastiveDataset = object
 from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
+from mmbench.color_utils import print_text
+
+
+# Global parameters
+IQ_MAP = {
+    "euaims": 80.,
+    "hbn": None
+}
 
 
 def get_train_data(dataset, datasetdir, modalities):
-    """ See `get_data` for documentation.
+    """ See `get_data` and `iq_threshold` for documentation.
     """
-    return get_data(dataset, datasetdir, modalities, dtype="train")
+    threshold = IQ_MAP.get(dataset)
+    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="train")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
 
 
 def get_test_data(dataset, datasetdir, modalities):
-    """ See `get_data` for documentation.
+    """ See `get_data` and `iq_threshold` for documentation.
     """
-    return get_data(dataset, datasetdir, modalities, dtype="test")
+    threshold = IQ_MAP.get(dataset)
+    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="test")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
+
+
+def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
+    """ Remove subjects with IQ below a user-defined threshold.
+
+    Parameters
+    ----------
+    data: dict
+        the loaded data for each modality.
+    metadata: DataFrame
+        the associated meta information.
+    threshold: int, default 80
+        the minimum IQ. If None no thresholding is applied.
+    col_name: str, default 'fsiq'
+        the name of the column containing the IQ information.
+
+    Returns
+    -------
+    data: dict
+        the loaded data thresholded for each modality.
+    meta_df: DataFrame
+        the associated meta information.
+    """
+    if threshold is None:
+        return data, meta_df
+    assert col_name in meta_df.columns, "Can't find the given IQ column name."
+    indices = meta_df[col_name].values > threshold
+    print_text(f"Filtering data: {np.sum(indices)}/{len(meta_df)}")
+    meta_df = meta_df.loc[indices]
+    indices = torch.argwhere(torch.from_numpy(indices)).flatten()
+    for key, tensor in data.items():
+        data[key] = torch.index_select(tensor, 0, indices)
+    return data, meta_df
 
 
 def get_data(dataset, datasetdir, modalities, dtype):

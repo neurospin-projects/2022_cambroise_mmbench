@@ -23,6 +23,7 @@ from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data, get_train_data
 from mmbench.workflow.predict import get_predictor
+from mmbench.model import get_models, eval_models
 
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
@@ -88,26 +89,30 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
         "n_feats_tr": [data_tr[mod].shape[1] for mod in modalities],
         "modalities": modalities}
     for name, params in parser.config.models.items():
-        model = params["get"](
+        _models = get_models(
+            params["get"],
             **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
-        models[name] = (model, params["eval"], eval_kwargs)
-    for name, (model, _, _) in models.items():
+        models[name] = (_models, params["eval"], eval_kwargs)
+    for name, (_models, _, _) in models.items():
         print_text(f"model: {name}")
-        print(model)
+        print(_models[0])
 
     print_subtitle("Evaluate models...")
     results = {}
     results_tr = {}
-    for name, (model, eval_fct, kwargs_fct) in models.items():
+    for name, (_models, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
-        if isinstance(model, torch.nn.Module):
-            model = model.to(device)
-            model.eval()
+        for idx, model in enumerate(_models):
+            if isinstance(model, torch.nn.Module):
+                model = model.to(device)
+                model.eval()
+                _models[idx] = model
         with torch.set_grad_enabled(False):
-            embeddings = eval_fct(model, data, **kwargs_fct)
-            embeddings_tr = eval_fct(model, data_tr, **kwargs_fct)
+            embeddings = eval_models(eval_fct, _models, data, **kwargs_fct)
+            embeddings_tr = eval_models(eval_fct, _models, data_tr,
+                                        **kwargs_fct)
             for key, val in embeddings.items():
                 key = _sanitize(key)
                 results[f"{key}_{dataset}"] = val
