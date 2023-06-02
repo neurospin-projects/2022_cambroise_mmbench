@@ -45,6 +45,10 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
         or 'ultralight'.
     title: str, default None
         the title displayed on the figure.
+    vmin: float, default None
+        minimum value on y-axis of figures
+    vmax: float, default None
+        maximum value on y-axis of figures
     """
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
@@ -58,7 +62,7 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
              fontsize_star=25, fontweight="bold", line_width=2.5,
              marker_size=.1, title=None, palette="Spectral", report_t=False,
-             do_pairwise_stars=False, do_one_sample_stars=True):
+             do_pairwise_stars=False, do_one_sample_stars=True, yname="model fit (r)"):
     """ Display results with bar plots.
 
     Parameters
@@ -98,6 +102,8 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
         optionally, display pairwise statistics.
     do_one_sample_stars: bool, default True
         optionally, display sampling statistics.
+    yname: str
+        optionally, name of the metric on y-axis
 
     Returns
     -------
@@ -137,7 +143,7 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     new_y = np.linspace(locs[0], locs[-1], 6)
     plt.yticks(new_y, labels=[f"{yy:.2f}" for yy in new_y], fontsize=fontsize,
                fontweight=fontweight)
-    plt.ylabel("model fit (r)", fontsize=fontsize, fontweight=fontweight)
+    plt.ylabel(yname, fontsize=fontsize, fontweight=fontweight)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)

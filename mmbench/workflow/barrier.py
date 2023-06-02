@@ -123,7 +123,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
                     z = model(data).cpu().detach().numpy()
                 X.append(z)
         X_train, X_test = X
-        clf, scorer = get_predictor(y_train)
+        clf, scorer, sname = get_predictor(y_train)
         clf.fit(X_train, y_train)
         return scorer(clf, X_test, y_test)
 
