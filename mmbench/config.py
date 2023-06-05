@@ -14,6 +14,7 @@ Configuration parser.
 
 # Imports
 import os
+import copy
 from types import SimpleNamespace
 
 
@@ -52,6 +53,7 @@ class ConfigParser(object):
         params: dict
             the filled parameters.
         """
+        params = copy.deepcopy(params)
         for name, val in params.items():
             if val != "auto":
                 continue

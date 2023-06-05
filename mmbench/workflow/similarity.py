@@ -23,6 +23,7 @@ from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_test_data
+from mmbench.model import get_models, eval_models
 from brainboard.metric import linear_cka, layer_at, get_named_layers
 
 
@@ -78,9 +79,10 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if (not isinstance(checkpoints, (list, tuple))
-           or "layers" not in params):
+                or "layers" not in params):
             continue
-        _models = params["get"](
+        _models = get_models(
+            params["get"],
             **parser.set_auto_params(params["get_kwargs"], default_params))
         eval_kwargs = parser.set_auto_params(
             params["eval_kwargs"], default_params)
@@ -92,12 +94,12 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir):
 
     print_subtitle("Evaluate models...")
     results_test = {}
-    for name, (_models, eval_fct, eval_kwargs, _layers) in models.items():
+    for name, (_models, eval_fct, eval_kwargs, layers) in models.items():
         if not isinstance(_models[0], torch.nn.Module):
             continue
         print_text(f"model: {name}")
         scores_test = {}
-        for layer_name in _layers:
+        for layer_name in layers:
             n_models = len(_models)
             iu = np.array(np.triu_indices(n_models, k=1)).T
             mat = np.zeros((n_models, n_models))

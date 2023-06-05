@@ -187,6 +187,35 @@ representations.
 mmbench rsa --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
 ```
 
+### Predictor
+
+Compare the learned latent space of different models using
+prediction analysis.
+
+```
+mmbench pred --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR
+```
+
+### CKA
+
+Define the Centered Kernel Alignment (CKA) as a measure of similarity
+between two output features in a layer of a network architecture given
+any two pairs of instances of a network.
+
+```
+mmbench feature-similarity --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR --configfile $CONFIGFILE
+```
+
+### barrier
+
+Compare the performance barrier interpolating the weights of any two
+pairs of intances of the same network and monitoring a common downstream
+task.
+
+```
+mmbench barrier-performance --dataset hbn --datasetdir $DATASETDIR --outdir $OUTDIR --configfile $CONFIGFILE --downstream_name $DOWNSTREAM_NAME
+```
+
 ## Contributing
 
 If you want to contribute to `mmbench`, be sure to review the [contribution guidelines](./CONTRIBUTING.rst).
