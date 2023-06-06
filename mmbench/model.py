@@ -141,6 +141,8 @@ def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, ver
             key = "MoPoeClav"
             continue
         if zeros_clinical:
+            if name == "clinical":
+                continue
             if name == "joint":
                 nan_indices = torch.any(torch.isnan(z_mu), dim=1)
                 z_mu[nan_indices] = z_mu[~nan_indices].mean()
@@ -330,7 +332,7 @@ def get_neuroclav(checkpointfile, layers=(444, 256, 20), **kwargs):
     return model
 
 
-def eval_neuroclav(models, data, modalities, n_samples=1, zeros_clinical=False,
+def eval_neuroclav(model, data, modalities, n_samples=1, zeros_clinical=False,
                    verbose=1):
     """ Evaluate the NeuroCLAV model.
 
