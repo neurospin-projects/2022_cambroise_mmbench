@@ -23,44 +23,92 @@ from mopoe.multimodal_cohort.experiment import MultimodalExperiment
 from mmbench.color_utils import print_text
 
 
+def get_models(get_fct, checkpointfile, *args, **kwargs):
+    """ Get N trained instance of a model from associated checkpoint files.
+
+    Parameters
+    ----------
+    get_fct: callable
+        a fonction that returns an instance of a model from a checkpoint file
+        and some additional optional parameters.
+    checkpointfile: list of str
+        list of files containing the model weights.
+
+    Returns
+    -------
+    models: list of Module
+        the list of instanciated models.
+    """
+    if not isinstance(checkpointfile, (list, tuple)):
+        checkpointfile = [checkpointfile]
+    return [get_fct(path, *args, **kwargs) for path in checkpointfile]
+
+
+def eval_models(eval_func, models, data, modalities, **kwargs):
+    """ Evaluate N instance of a model.
+
+    Parameters
+    ----------
+    eval_func: callable
+        the model evaluation function.
+    models: list of Module
+        input models.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        name of the views to consider.
+    kwargs: dict
+        optional arguments passed to the evaluation function.
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = None
+    for model in models:
+        emb = eval_func(model, data, modalities, **kwargs)
+        if embeddings is None:
+            embeddings = dict((key, [val]) for key, val in emb.items())
+        else:
+            assert sorted(embeddings.keys()) == sorted(emb.keys())
+            for key, val in emb.items():
+                embeddings[key].append(val)
+    return embeddings
+
+
 def get_mopoe(checkpointfile):
     """ Return the MOPOE model.
 
     Parameters
     ----------
     checkpointfile: str
-        list of paths to model weights.
+        path to the model weights.
 
     Returns
     -------
     model: Module
-        instanciated models.
+        instanciated model.
     """
-    models = []
-    if not isinstance(checkpointfile, (list, tuple)):
-        checkpointfile = [checkpointfile]
-    for model_file in checkpointfile:
-        flags_file = os.path.join(os.path.dirname(model_file), os.pardir,
-                                  os.pardir, "flags.rar")
-        if not os.path.isfile(flags_file):
-            raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
-        alphabet_file = os.path.join(
-            os.path.dirname(mopoe.__file__), "alphabet.json")
-        print_text(f"restoring weights: {model_file}")
-        experiment, flags = MultimodalExperiment.get_experiment(
-            flags_file, alphabet_file, model_file)
-        models.append(experiment.mm_vae)
-    return models
+    flags_file = os.path.join(os.path.dirname(checkpointfile), os.pardir,
+                              os.pardir, "flags.rar")
+    if not os.path.isfile(flags_file):
+        raise ValueError(f"Can't locate expermiental flags: {flags_file}.")
+    alphabet_file = os.path.join(
+        os.path.dirname(mopoe.__file__), "alphabet.json")
+    print_text(f"restoring weights: {checkpointfile}")
+    experiment, flags = MultimodalExperiment.get_experiment(
+        flags_file, alphabet_file, checkpointfile)
+    return experiment.mm_vae
 
 
-def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
-               _disp=True):
+def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
     ----------
-    models: Module or list of Module
-        input models.
+    models: Module
+        input model.
     data: dict
         the input data organized by views.
     modalities: list of str
@@ -69,8 +117,8 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
         the number of time to sample the posterior.
     zeros_clinical: bool, default Fasle
         causes the zeros of the clinical data, put to true to make a transfer
-    _disp: bool, default True
-        allows display in the terminal
+    verbose: int, default 1
+        control the verbosity level.
 
     Returns
     -------
@@ -78,14 +126,6 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
         the generated latent representations.
     """
     embeddings = {}
-    if isinstance(models, list):
-        embeddings = multi_eval(eval_mopoe, models, data, modalities,
-                                n_samples=n_samples,
-                                zeros_clinical=zeros_clinical, _disp=False)
-        for key in embeddings:
-            print_text(f"{key} latents: {embeddings[key].shape}")
-        return embeddings
-
     if zeros_clinical:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
@@ -98,11 +138,9 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
     for idx, name in enumerate(modalities + ["joint"]):
         z_mu, z_logvar = latents[idx]
         if z_mu is None:
-            key = "MoPoeT"
+            key = "MoPoeClav"
             continue
         if zeros_clinical:
-            if name == "clinical":
-                continue
             if name == "joint":
                 nan_indices = torch.any(torch.isnan(z_mu), dim=1)
                 z_mu[nan_indices] = z_mu[~nan_indices].mean()
@@ -110,11 +148,10 @@ def eval_mopoe(models, data, modalities, n_samples=1, zeros_clinical=False,
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
             z_samples = q.loc
-            code = z_samples.cpu().detach().numpy()
         else:
             z_samples = q.sample((n_samples, ))
-            code = z_samples.cpu().detach().numpy()
-        if _disp:
+        code = z_samples.cpu().detach().numpy()
+        if verbose > 0:
             print_text(f"{key}_{name} latents: {code.shape}")
         embeddings[f"{key}_{name}"] = code
     return embeddings
@@ -126,7 +163,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     Parameters
     ----------
     checkpointfile: str
-        list of paths to model weights.
+        path to the model weights.
     latent_dim: int
         the number of latent dimensions.
     n_channels: int
@@ -139,40 +176,37 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
     Returns
     -------
     model: Module
-        instanciated models.
+        instanciated model.
     """
-    models = []
-    if not isinstance(checkpointfile, (list, tuple)):
-        checkpointfile = [checkpointfile]
-    for model_file in checkpointfile:
-        model = MCVAE(n_channels=n_channels, n_feats=n_feats, sparse=True,
-                      **kwargs)
-        checkpoint = torch.load(model_file, map_location=torch.device("cpu"))
-        model.load_state_dict(checkpoint["model"])
-        models.append(model)
-    return models
+    model = MCVAE(n_channels=n_channels, n_feats=n_feats, sparse=True,
+                  **kwargs)
+    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
+    model.load_state_dict(checkpoint["model"])
+    return model
 
 
-def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
-                ndim=None, zeros_clinical=False, _disp=True):
+def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
+                ndim=None, zeros_clinical=False, verbose=1):
     """ Evaluate the sMCVAE model.
 
     Parameters
     ----------
-    models: Module or list of Module
-        input models.
+    model: Module or list of Module
+        input model.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    threshold: float, default 0.2
-        value for thresholding
-    n_samples: int, default 1
+    n_samples: int, default 10
         the number of time to sample the posterior.
+    threshold: float, default 0.2
+        value for thresholding. If None, no thresholding is applied.
+    ndim: int, default None
+        number of dimensions to keep.
     zeros_clinical: bool, default Fasle
         causes the zeros of the clinical data, put to true to make a transfer
-    _disp: bool, default True
-        allows display in the terminal
+    verbose: int, default 1
+        control the verbosity level.
 
     Returns
     -------
@@ -180,33 +214,23 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
         the generated latent representations.
     """
     embeddings = {}
-    if isinstance(models, list):
-        embeddings = multi_eval(eval_smcvae, models, data, modalities,
-                                threshold=threshold, n_samples=n_samples,
-                                ndim=ndim, zeros_clinical=zeros_clinical,
-                                _disp=False)
-        for key in embeddings:
-            print_text(f"{key} latents: {embeddings[key].shape}")
-        return embeddings
-
     if zeros_clinical:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
         data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
         data["clinical"] = data["clinical"].to(device, dtype=dtype)
-    latents = models.encode([data[mod] for mod in modalities])
+    latents = model.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
     else:
         z_samples = [q.sample((n_samples, )).cpu().detach().numpy()
                      for q in latents]
-    z_samples = [z.reshape(-1, models.latent_dim) for z in z_samples]
+    z_samples = [z.reshape(-1, model.latent_dim) for z in z_samples]
     if threshold is not None:
-        dim = []
-        for elem in z_samples:
-            dim.append(elem.ndim)
-        z_samples = apply_threshold(models, z_samples, threshold=threshold,
-                                    ndim=ndim, keep_dims=False, reorder=True)
+        dim = [elem.ndim for elem in z_samples]
+        z_samples = model.apply_threshold(
+            z_samples, threshold=threshold, ndim=ndim, keep_dims=False,
+            reorder=True)
         if [elem.ndim for elem in z_samples] != dim:
             z_samples = [elem.reshape(-1, 1) for elem in z_samples]
     thres_latent_dim = z_samples[0].shape[1]
@@ -218,7 +242,7 @@ def eval_smcvae(models, data, modalities, threshold=0.2, n_samples=1,
             continue
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
-        if _disp:
+        if verbose > 0:
             print_text(f"sMCVAE_{name} latents: {code.shape}")
     return embeddings
 
@@ -228,29 +252,25 @@ def get_pls(checkpointfile):
 
     Parameters
     ----------
-    checkpointfile: list of str
-        list of paths to model weights.
+    checkpointfile: str
+        path to the model weights.
 
     Returns
     -------
-    models: list of Module
-        instanciated models.
+    models: Module
+        instanciated model.
     """
-    models = []
-    if not isinstance(checkpointfile, (list, tuple)):
-        checkpointfile = [checkpointfile]
-    for file in checkpointfile:
-        models.append(load(file))
-    return models
+    model = load(checkpointfile)
+    return model
 
 
 def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
-             _disp=True):
+             verbose=1):
     """ Evaluate the PLS model.
 
     Parameters
     ----------
-    models: list of Module
+    model: Module
         input models.
     data: dict
         the input data organized by views.
@@ -261,8 +281,8 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
     zeros_clinical: bool, default Fasle
         causes the deletion of the clinical data,
         put to true to make a transfer
-    _disp: bool, default True
-        allows display in the terminal
+    verbose: int, default 1
+        control the verbosity level.
 
     Returns
     -------
@@ -270,14 +290,6 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
         the generated latent representations.
     """
     embeddings = {}
-    if isinstance(models, list):
-        embeddings = multi_eval(eval_pls, models, data, modalities,
-                                n_samples=n_samples,
-                                zeros_clinical=zeros_clinical, _disp=False)
-        for key in embeddings:
-            print_text(f"{key} latents: {embeddings[key].shape}")
-        return embeddings
-
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
     if zeros_clinical:
         X_test_r = [models.transform(X_test.cpu().detach().numpy())]
@@ -288,21 +300,21 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
         if (zeros_clinical and name == "clinical"):
             continue
         code = np.array(X_test_r[idx])
-        if _disp:
+        if verbose > 0:
             print_text(f"PLS_{name} latents: {code.shape}")
         embeddings[f"PLS_{name}"] = code
     return embeddings
 
 
-def get_neuroclav(checkpointfile, layers, **kwargs):
+def get_neuroclav(checkpointfile, layers=(444, 256, 20), **kwargs):
     """ Return the NeuroCLAV model.
 
     Parameters
     ----------
     checkpointfiles: str
-        the path to the model weights.
-    layers: a list of int
-        a parameter passed to the NeuroCLAV constructor.
+        path to the model weights.
+    layers: a list of int, default (444, 256, 20)
+        the MLP layers definition.
     kwargs: dict
         extra parameters passed to the NeuroCLAV constructor.
 
@@ -312,19 +324,14 @@ def get_neuroclav(checkpointfile, layers, **kwargs):
         the instanciated model.
     """
     from models.mlp import MLP
-    models = []
-    if not isinstance(checkpointfile, (list, tuple)):
-        checkpointfile = [checkpointfile]
-    for file in checkpointfile:
-        model = MLP(layers=layers)
-        checkpoint = torch.load(file, map_location=torch.device("cpu"))
-        model.load_state_dict(checkpoint)
-        models.append(model)
-    return models
+    model = MLP(layers=layers)
+    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
+    model.load_state_dict(checkpoint)
+    return model
 
 
 def eval_neuroclav(models, data, modalities, n_samples=1, zeros_clinical=False,
-                   _disp=True):
+                   verbose=1):
     """ Evaluate the NeuroCLAV model.
 
     Parameters
@@ -337,8 +344,8 @@ def eval_neuroclav(models, data, modalities, n_samples=1, zeros_clinical=False,
         names of the model input views.
     zeros_clinical: bool, default Fasle
         causes the deletion of the clinical data, does nothing here
-    _disp: bool, default True
-        allows display in the terminal
+    verbose: int, default 1
+        control the verbosity level.
 
     Returns
     -------
@@ -346,136 +353,13 @@ def eval_neuroclav(models, data, modalities, n_samples=1, zeros_clinical=False,
         the generated latent representations.
     """
     embeddings = {}
-    if isinstance(models, list):
-        embeddings = multi_eval(eval_neuroclav, models, data, modalities,
-                                n_samples=n_samples,
-                                zeros_clinical=zeros_clinical, _disp=False)
-        for key in embeddings:
-            print_text(f"{key} latents: {embeddings[key].shape}")
-        return embeddings
-
     assert "rois" in modalities
     view_data = data["rois"]
+    model.eval()
     with torch.no_grad():
-        z_samples = models(view_data)
-    code = z_samples.cpu().detach().numpy()
+        code = model(view_data).cpu().detach().numpy()
     code = np.array(code)
-    if _disp:
+    if verbose > 0:
         print_text(f"NeuroCLAV_rois latents: {code.shape}")
     embeddings["NeuroCLAV_rois"] = code
     return embeddings
-
-
-def multi_eval(eval_func, models, data, modalities, **kwargs):
-    """ Evaluate a list of models.
-
-    Parameters
-    ----------
-    eval_func: evaluation function
-        evaluation function to call
-    models: list of Module
-        input models.
-    data: dict
-        the input data organized by views.
-    modalities: list of str
-        names of the model input views.
-    kwargs: {n_samples, threshold}
-        optional arguments of the evaluation functions
-
-    Returns
-    -------
-    embeddings: dict
-        the generated latent representations.
-    """
-    embeddings = {}
-    for model in models:
-        emb = eval_func(model, data, modalities, **kwargs)
-        for key in emb:
-            if key not in embeddings:
-                embeddings[key] = np.empty((0,) + emb[key].shape)
-            embeddings[key] = np.append(embeddings[key], [emb[key]], axis=0)
-    for key in embeddings:
-        if embeddings[key].ndim == 4:
-            shape = embeddings[key].shape
-            embeddings[key] = embeddings[key].reshape(shape[0] * shape[1],
-                                                      shape[2], shape[3])
-    return embeddings
-
-
-def apply_threshold(model, z, threshold, keep_dims=True, reorder=False,
-                    ndim=None):
-    """ Apply dropout threshold.
-
-    Parameters
-    ----------
-    model: MCVAE
-        input model
-    z: Tensor
-        distribution samples.
-    threshold: float
-        dropout threshold.
-    keep_dims: bool default True
-        dropout lower than threshold is set to 0.
-    reorder: bool default False
-        reorder dropout rates.
-    ndim: int, default None
-        number of dimensions to keep
-
-    Returns
-    -------
-    z_keep: list
-        dropout rates.
-    """
-    assert 0 < threshold <= 1.0, (
-        f"the threshold ({threshold}) must be between 0 and 1")
-    order = torch.argsort(model.dropout).squeeze()
-    keep = (model.dropout < threshold).squeeze()
-    if (ndim is not None and torch.sum(keep).item() != ndim):
-        keep, threshold = create_keep(model, threshold, ndim)
-    z_keep = []
-    for drop in z:
-        if keep_dims:
-            drop[:, ~keep] = 0
-        else:
-            drop = drop[:, keep]
-            order = torch.argsort(
-                model.dropout[model.dropout < threshold]).squeeze()
-        if reorder:
-            drop = drop[:, order]
-        z_keep.append(drop)
-        del drop
-    return z_keep
-
-
-def create_keep(model, threshold, ndim):
-    """ Create keep list with ndim selected distribution samples.
-
-    Parameters
-    ----------
-    model: MCVAE
-        input model
-    threshold: float
-        initial dropout threshold.
-    ndim: int
-        number of dimensions to keep
-
-    Returns
-    -------
-    keep: list
-        selected distribution samples.
-    threshold: float
-        final dropout threshold.
-    """
-    keep = (model.dropout < threshold).squeeze()
-    n, tmin, tmax = 0, 0, 1
-    while (torch.sum(keep).item() != ndim and n < 50):
-        if torch.sum(keep).item() < ndim:
-            tmin = threshold
-            threshold = (threshold + tmax) / 2
-        else:
-            tmax = threshold
-            threshold = (threshold + tmin) / 2
-        keep = (model.dropout < threshold).squeeze()
-        n = n + 1
-    assert (n < 50)
-    return keep, threshold
