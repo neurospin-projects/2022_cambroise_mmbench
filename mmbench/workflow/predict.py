@@ -170,6 +170,7 @@ def get_predictor(data):
     else:
         predictor = linear_model.Ridge(alpha=.5)
         scorer = metrics.get_scorer("neg_mean_absolute_error")
-        scorer = metrics.make_scorer(scorer._score_func, greater_is_better=True)
+        scorer = metrics.make_scorer(scorer._score_func,
+                                     greater_is_better=True)
         name = "MAE"
     return predictor, scorer, name
