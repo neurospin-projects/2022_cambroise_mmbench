@@ -129,7 +129,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         clf.fit(X_train, y_train)
         return scorer(clf, X_test, y_test)
 
-    results_test = {}
+    results_test, results_curve = {}, {}
     scale = [100, -100]
     _, _, sname = get_predictor(y_test)
     for name, (_models, eval_fct, eval_kwargs) in models.items():
@@ -169,12 +169,16 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
             scale[1] = max_val
         print(mat)
         results_test[name] = mat
+        results_curve[name] = points_curve
 
     mat_display(results_test, dataset, outdir, downstream_name, scale)
     barrier_file = os.path.join(
         benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")
     np.savez_compressed(barrier_file, **results_test)
-    print_result(f"barrier interpolation: {barrier_file}")
+    curve_file = os.path.join(
+        benchdir, f"barrier_curves_{dataset}_{downstream_name}.npz")
+    np.savez_compressed(curve_file, **results_curve)
+    print_result(f"barrier interpolation: {barrier_file}, {curve_file}")
 
 
 def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
