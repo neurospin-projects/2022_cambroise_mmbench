@@ -62,7 +62,8 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
              fontsize_star=25, fontweight="bold", line_width=2.5,
              marker_size=.1, title=None, palette="Spectral", report_t=False,
-             do_pairwise_stars=False, do_one_sample_stars=True, yname="model fit (r)"):
+             do_pairwise_stars=False, do_one_sample_stars=True,
+             yname="model fit (r)"):
     """ Display results with bar plots.
 
     Parameters

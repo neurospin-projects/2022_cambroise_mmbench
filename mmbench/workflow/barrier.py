@@ -153,7 +153,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
             ref = metrics[-1] * coeffs + (1 - coeffs) * metrics[0]
             points_curve[i1, i2] = metrics
             points_curve[i2, i1] = metrics[::-1]
-            mat[i1, i2] = abs(np.trapz(metrics, coeffs) - np.trapz(ref, coeffs))
+            mat[i1, i2] = abs(
+                np.trapz(metrics, coeffs) - np.trapz(ref, coeffs))
             mat[i2, i1] = mat[i1, i2]
         vmax = np.max(points_curve)
         vmin = np.min(points_curve)
@@ -176,7 +177,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_result(f"barrier interpolation: {barrier_file}")
 
 
-def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir, scale, sname):
+def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
+                    scale, sname):
     """ Save barrier curves for a model
 
     Parameters
@@ -212,15 +214,17 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir, 
 
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
-    plt.suptitle(f"{model_name} {downstream} BARRIER FIGURES", fontsize=20, y=.95)
-    filename = os.path.join(outdir, f"barrier_{model_name}_{downstream}_{dataset}.png")
+    plt.suptitle(f"{model_name} {downstream} BARRIER FIGURES", fontsize=20,
+                 y=.95)
+    filename = os.path.join(outdir,
+                            f"barrier_{model_name}_{downstream}_{dataset}.png")
     plt.savefig(filename)
     print_result(f"BARRIER: {filename}")
 
 
 def mat_display(matrices, dataset, outdir, downstream_name, scale):
     """ Plot area matrices
-    
+
     Parameters
     ----------
     matrices : dict
@@ -233,7 +237,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
         the name of the column that contains the downstream classification
         task.
     scale : tuple (min, max)
-        min and max values of matrix in matrices     
+        min and max values of matrix in matrices
     """
     ncols = 2
     nrows = 3
@@ -251,6 +255,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset} BARRIER AREA", fontsize=20, y=.95)
-    filename = os.path.join(outdir, f"barrier_area_{downstream_name}_{dataset}.png")
+    filename = os.path.join(outdir,
+                            f"barrier_area_{downstream_name}_{dataset}.png")
     plt.savefig(filename)
     print_result(f"AREA: {filename}")

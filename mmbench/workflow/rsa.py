@@ -154,7 +154,8 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
             qname, rsa_results, ax=ax, figsize=None, dpi=300, fontsize=7,
             fontsize_star=12, fontweight="bold", line_width=2.5,
             marker_size=3, title=qname.upper(), report_t=True,
-            do_one_sample_stars=True, do_pairwise_stars=True, palette="Set2", yname="correlation")
+            do_one_sample_stars=True, do_pairwise_stars=True, palette="Set2",
+            yname="correlation")
         if pairwise_stat_df is not None:
             pairwise_stats.append(pairwise_stat_df)
     if len(pairwise_stats) > 0:

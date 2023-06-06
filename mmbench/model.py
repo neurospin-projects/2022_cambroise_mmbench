@@ -321,7 +321,7 @@ def eval_neuroclav(model, data, modalities, n_samples=1, verbose=1):
         the generated latent representations.
     """
     embeddings = {}
-    assert "rois" in modalities 
+    assert "rois" in modalities
     view_data = data["rois"]
     model.eval()
     with torch.no_grad():
