@@ -104,7 +104,8 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, transfer=False, verbose=1):
+def eval_mopoe(models, data, modalities, n_samples=10, transfer=False,
+               verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -131,7 +132,8 @@ def eval_mopoe(models, data, modalities, n_samples=10, transfer=False, verbose=1
     if transfer:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
-        data["clinical"] = torch.from_numpy(np.full(data["clinical"].shape, np.nan))
+        data["clinical"] = torch.from_numpy(np.full(data["clinical"].shape,
+                                                    np.nan))
         data["clinical"] = data["clinical"].to(device, dtype=dtype)
     inf_data = models.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
@@ -226,8 +228,6 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         reg.fit(data_0["rois"].cpu(), data_0["clinical"].cpu())
         data["clinical"] = torch.from_numpy(reg.predict(data["rois"].cpu()))
         data["clinical"] = data["clinical"].to(device, dtype=dtype)
-
-        
     latents = model.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
