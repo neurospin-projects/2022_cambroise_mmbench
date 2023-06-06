@@ -131,6 +131,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
 
     results_test = {}
     scale = [100, -100]
+    _, _, sname = get_predictor(y_test)
     for name, (_models, eval_fct, eval_kwargs) in models.items():
         if not isinstance(_models[0], torch.nn.Module):
             continue
@@ -149,15 +150,16 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
             coeffs, metrics = eval_interpolation(
                 copy.deepcopy(model1), state1, state2, [data_train, data_test],
                 eval_fn, n_coeffs=n_coeffs, eval_kwargs=kwargs)
+            ref = metrics[-1] * coeffs + (1 - coeffs) * metrics[0]
             points_curve[i1, i2] = metrics
             points_curve[i2, i1] = metrics[::-1]
-            mat[i1, i2] = np.trapz(metrics, coeffs)
+            mat[i1, i2] = abs(np.trapz(metrics, coeffs) - np.trapz(ref, coeffs))
             mat[i2, i1] = mat[i1, i2]
         vmax = np.max(points_curve)
         vmin = np.min(points_curve)
         y_axes = [vmin - 0.05 * (vmax - vmin), vmax + 0.05 * (vmax - vmin)]
-        barrier_display(coeffs, points_curve, f"{name}_{downstream_name}",
-                        dataset, benchdir, y_axes)
+        barrier_display(coeffs, points_curve, name, downstream_name,
+                        dataset, benchdir, y_axes, sname)
         min_val = np.min(mat)
         max_val = np.max(mat)
         if scale[0] > min_val:
@@ -174,7 +176,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_result(f"barrier interpolation: {barrier_file}")
 
 
-def barrier_display(coeffs, l_metrics, model_name, dataset, outdir, scale):
+def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir, scale, sname):
     """ Save barrier curves for a model
 
     Parameters
@@ -185,14 +187,18 @@ def barrier_display(coeffs, l_metrics, model_name, dataset, outdir, scale):
         value matrix of the curve between two models.
     model_name : str
         name of the model.
+    downstream : str
+        name of the downstream task.
     dataset: str
         the dataset name: euaims or hbn.
     outdir : str
         the destination folder.
     scale : tuple (min, max)
         min and max values of matrix in matrices
+    sname : str
+        the name of the scorer
     """
-    print_subtitle(f"Display {model_name} figures...")
+    print_subtitle(f"Display {model_name}_{downstream} figures...")
     ncols = 3
     nrows = 4
     plt.figure(figsize=np.array((ncols, nrows)) * 4)
@@ -200,13 +206,14 @@ def barrier_display(coeffs, l_metrics, model_name, dataset, outdir, scale):
         ax = plt.subplot(nrows, ncols, idx + 1)
         plot_curve(
             coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
-            fontweight="bold", title=f"{idx + 1}")
+            fontweight="bold", title=f"from run {idx + 1}")
         ax.set_ylim(scale[0], scale[1])
+        ax.set_ylabel(sname)
 
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
-    plt.suptitle(f"{model_name} BARRIER FIGURES", fontsize=20, y=.95)
-    filename = os.path.join(outdir, f"barrier_{model_name}_{dataset}.png")
+    plt.suptitle(f"{model_name} {downstream} BARRIER FIGURES", fontsize=20, y=.95)
+    filename = os.path.join(outdir, f"barrier_{model_name}_{downstream}_{dataset}.png")
     plt.savefig(filename)
     print_result(f"BARRIER: {filename}")
 
@@ -236,7 +243,10 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
         plot_mat(
             key, matrices[key], ax=ax, figsize=None, dpi=300, fontsize=7,
             fontweight="bold", title=f"{key}", vmin=scale[0], vmax=scale[1])
-        plt.axis('off')
+        ax.set_xticks(np.arange(0, 10, 2))
+        ax.set_yticks(np.arange(0, 10, 2))
+        ax.set_xticklabels(np.arange(1, 11, 2))
+        ax.set_yticklabels(np.arange(1, 11, 2))
         plt.colorbar(ax.images[0], ax=ax)
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)

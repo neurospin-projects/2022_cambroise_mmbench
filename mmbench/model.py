@@ -102,12 +102,12 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, verbose=1):
+def eval_mopoe(model, data, modalities, n_samples=10, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
     ----------
-    models: Module
+    model: Module
         input model.
     data: dict
         the input data organized by views.
@@ -124,7 +124,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, verbose=1):
         the generated latent representations.
     """
     embeddings = {}
-    inf_data = models.inference(data)
+    inf_data = model.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     key = "MoPoe"
