@@ -21,6 +21,8 @@ from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
 from mmbench.color_utils import print_text
+from sklearn.linear_model import LinearRegression
+from mmbench.dataset import get_train_data
 
 
 def get_models(get_fct, checkpointfile, *args, **kwargs):
@@ -102,7 +104,7 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, verbose=1):
+def eval_mopoe(models, data, modalities, n_samples=10, transfer=False, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -115,7 +117,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, ver
         names of the model input views.
     n_samples: int, default 1
         the number of time to sample the posterior.
-    zeros_clinical: bool, default Fasle
+    transfer: bool, default Fasle
         causes the zeros of the clinical data, put to true to make a transfer
     verbose: int, default 1
         control the verbosity level.
@@ -126,7 +128,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, ver
         the generated latent representations.
     """
     embeddings = {}
-    if zeros_clinical:
+    if transfer:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
         data["clinical"] = torch.from_numpy(np.full(data["clinical"].shape, np.nan))
@@ -140,7 +142,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, zeros_clinical=False, ver
         if z_mu is None:
             key = "MoPoeClav"
             continue
-        if zeros_clinical:
+        if transfer:
             if name == "clinical":
                 continue
             if name == "joint":
@@ -188,7 +190,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
 
 
 def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
-                ndim=None, zeros_clinical=False, verbose=1):
+                ndim=None, transfer=None, verbose=1):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -205,8 +207,8 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         value for thresholding. If None, no thresholding is applied.
     ndim: int, default None
         number of dimensions to keep.
-    zeros_clinical: bool, default Fasle
-        causes the zeros of the clinical data, put to true to make a transfer
+    transfer: tuple, (train_dataset, train_datasetdir), default None
+        causes the interpolation of the clinical data
     verbose: int, default 1
         control the verbosity level.
 
@@ -216,11 +218,16 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         the generated latent representations.
     """
     embeddings = {}
-    if zeros_clinical:
+    if transfer is not None:
         device = data["clinical"].device
         dtype = data["clinical"].dtype
-        data["clinical"] = torch.from_numpy(np.zeros(data["clinical"].shape))
+        reg = LinearRegression()
+        data_0, _ = get_train_data(transfer[0], transfer[1], modalities)
+        reg.fit(data_0["rois"].cpu(), data_0["clinical"].cpu())
+        data["clinical"] = torch.from_numpy(reg.predict(data["rois"].cpu()))
         data["clinical"] = data["clinical"].to(device, dtype=dtype)
+
+        
     latents = model.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
@@ -240,7 +247,7 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
                      for z in z_samples]
     for idx, name in enumerate(modalities):
-        if (zeros_clinical and name == "clinical"):
+        if (transfer and name == "clinical"):
             continue
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
@@ -266,7 +273,7 @@ def get_pls(checkpointfile):
     return model
 
 
-def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
+def eval_pls(models, data, modalities, n_samples=1, transfer=False,
              verbose=1):
     """ Evaluate the PLS model.
 
@@ -280,7 +287,7 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
         names of the model input views.
     n_samples: int, default 1
         the number of time to sample the posterior.
-    zeros_clinical: bool, default Fasle
+    transfer: bool, default Fasle
         causes the deletion of the clinical data,
         put to true to make a transfer
     verbose: int, default 1
@@ -293,13 +300,13 @@ def eval_pls(models, data, modalities, n_samples=1, zeros_clinical=False,
     """
     embeddings = {}
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    if zeros_clinical:
+    if transfer:
         X_test_r = [models.transform(X_test.cpu().detach().numpy())]
     else:
         X_test_r = models.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(reversed(modalities)):
-        if (zeros_clinical and name == "clinical"):
+        if (transfer and name == "clinical"):
             continue
         code = np.array(X_test_r[idx])
         if verbose > 0:
@@ -332,7 +339,7 @@ def get_neuroclav(checkpointfile, layers=(444, 256, 20), **kwargs):
     return model
 
 
-def eval_neuroclav(model, data, modalities, n_samples=1, zeros_clinical=False,
+def eval_neuroclav(model, data, modalities, n_samples=1, transfer=False,
                    verbose=1):
     """ Evaluate the NeuroCLAV model.
 
@@ -344,7 +351,7 @@ def eval_neuroclav(model, data, modalities, n_samples=1, zeros_clinical=False,
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    zeros_clinical: bool, default Fasle
+    transfer: bool, default Fasle
         causes the deletion of the clinical data, does nothing here
     verbose: int, default 1
         control the verbosity level.
