@@ -24,6 +24,7 @@ fire.Fire({
     "train-smcvae": wf1.train_smcvae,
     "train-cvae": wf1.train_cvae,
     "train-pls":bl.train_pls,
+    "train-vae": bl.train_vae,
     "train-neuroclav":bl.train_neuroclav,
     "latent": wf1.benchmark_latent_exp,
     "rsa": wf1.benchmark_rsa_exp,

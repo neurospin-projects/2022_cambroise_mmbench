@@ -155,6 +155,8 @@ def train_model(dataloaders, model, device, criterion, optimizer,
                 running_loss = 0.0
                 running_extra_loss = {}
                 for batch_data in dataloaders[phase]:
+                    if isinstance(batch_data, list):
+                        batch_data = batch_data[0]
                     batch_data = to_device(batch_data, device)
                     # Zero the parameter gradients
                     optimizer.zero_grad()
@@ -163,7 +165,11 @@ def train_model(dataloaders, model, device, criterion, optimizer,
                     with torch.set_grad_enabled(phase == "train"):
                         outputs, layer_outputs = model(batch_data)
                         criterion.layer_outputs = layer_outputs
-                        loss, extra_loss = criterion(outputs)
+                        try:
+                            loss, extra_loss = criterion(outputs)
+                        except:
+
+                            loss, extra_loss = criterion(outputs, batch_data)
                         for key, val in extra_loss.items():
                             if key not in running_extra_loss:
                                 running_extra_loss[key] = val.item()
