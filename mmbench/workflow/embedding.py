@@ -21,12 +21,13 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data, get_train_data
+from mmbench.dataset import get_test_data, get_train_data, get_full_data
 from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models, eval_models
 
 
-def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
+def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
+                         transfer=False):
     """ Retrieve the learned latent space of different models using a
     N samplings scheme.
 
@@ -47,6 +48,8 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
         module.
     outdir: str
         the destination folder.
+    transfer: bool, default False
+        Training dataset is different from test dataset
 
     Notes
     -----
@@ -64,6 +67,10 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir):
     print_text(f"modalities: {modalities}")
     data, meta_df = get_test_data(dataset, datasetdir, modalities)
     data_tr, meta_df_tr = get_train_data(dataset, datasetdir, modalities)
+    if transfer is True:
+        data_tr, meta_df_tr, data, meta_df, _, _ = get_full_data(dataset,
+                                                                 datasetdir,
+                                                                 modalities)
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
         data_tr[mod] = data_tr[mod].to(device).float()

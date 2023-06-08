@@ -25,8 +25,6 @@ def train_neuroclav(dataset, datasetdir, outdir, fit_lat_dims=20, n_iter=100):
 
     Parameters
     ----------
-    Parameters
-    ----------
     dataset: str
         the dataset name: euaims or hbn.
     datasetdir: str

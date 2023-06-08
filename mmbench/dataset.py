@@ -54,6 +54,38 @@ def get_test_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
+def get_full_data(dataset, datasetdir, modalities):
+    """ See `get_data` and `iq_threshold` for documentation.
+        Returns
+    -------
+    data_train: dict
+        the loaded data for each modality.
+    metadata_train: DataFrame
+        the associated meta information.
+    data_test: dict
+        the loaded data for each modality.
+    metadata_test: DataFrame
+        the associated meta information.
+    data: dict
+        the loaded data for each modality.
+    metadata: DataFrame
+        the associated meta information.
+    """
+    threshold = IQ_MAP.get(dataset)
+    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="full")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    data_test, meta_test_df = get_data(dataset, datasetdir, modalities,
+                                       dtype="full_test")
+    data_test, meta_test_df = iq_threshold(dataset, data_test, meta_test_df,
+                                           threshold=threshold)
+    data_train, meta_train_df = get_data(dataset, datasetdir, modalities,
+                                         dtype="full_train")
+    data_train, meta_train_df = iq_threshold(dataset, data_train,
+                                             meta_train_df,
+                                             threshold=threshold)
+    return data_train, meta_train_df, data_test, meta_test_df, data, meta_df
+
+
 def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
     """ Remove subjects with IQ below a user-defined threshold.
 
@@ -99,7 +131,7 @@ def get_data(dataset, datasetdir, modalities, dtype):
     modalities: list of str
         the modalities to load.
     dtype: str
-        the data type: 'train' or 'test'.
+        the data type: 'train', 'test', 'full_test', 'full_train' or 'full'.
 
     Returns
     -------
@@ -111,15 +143,58 @@ def get_data(dataset, datasetdir, modalities, dtype):
     trainset, testset = get_dataset(dataset, datasetdir, modalities)
     if dtype == "train":
         dataset = trainset
+    elif dtype == "full":
+        datasets = [trainset, testset]
+    elif dtype == "full_test":
+        datasets = [testset]
+    elif dtype == "full_train":
+        datasets = [trainset]
     else:
         dataset = testset
-    sampler = MissingModalitySampler(dataset, batch_size=len(dataset))
-    loader = DataLoader(dataset, batch_sampler=sampler, num_workers=0)
-    while True:
-        dataiter = iter(loader)
-        data, _, meta = next(dataiter)
-        if all([mod in data.keys() for mod in modalities]):
-            break
+    if "full" in dtype:
+        all_data = {"rois": [], "clinical": []}
+        all_meta = None
+        for dataset in datasets:
+            sampler = MissingModalitySampler(dataset, batch_size=len(dataset))
+            loader = DataLoader(dataset, batch_sampler=sampler, num_workers=0)
+            for data, _, meta in loader:
+                if "rois" not in data:
+                    continue
+                all_data["rois"].append(data["rois"])
+                if "clinical" not in data:
+                    all_data["clinical"].append(None)
+                else:
+                    all_data["clinical"].append(data["clinical"])
+                if all_meta is None:
+                    all_meta = dict((key, [val]) for key, val in meta.items())
+                else:
+                    for key, val in meta.items():
+                        all_meta[key].append(val)
+        clinical_size = set([item.size(1) if item is not None else 0
+                             for item in all_data["clinical"]])
+        if len(clinical_size) > 1:
+            clinical_size.remove(0)
+        assert len(clinical_size) == 1, "All blocks must have the same size."
+        clinical_size = list(clinical_size)[0]
+        for idx, (roi_items, clin_items) in enumerate(
+                zip(all_data["rois"], all_data["clinical"])):
+            if clin_items is None:
+                block = torch.empty((roi_items.size(0), clinical_size))
+                block[:] = float("nan")
+                all_data["clinical"][idx] = block
+        all_data["rois"] = torch.cat(all_data["rois"], dim=0)
+        all_data["clinical"] = torch.cat(all_data["clinical"], dim=0)
+        for key in all_meta:
+            all_meta[key] = torch.cat(all_meta[key], dim=0)
+        data, meta = (all_data, all_meta)
+    else:
+        sampler = MissingModalitySampler(dataset, batch_size=len(dataset))
+        loader = DataLoader(dataset, batch_sampler=sampler, num_workers=0)
+        while True:
+            dataiter = iter(loader)
+            data, _, meta = next(dataiter)
+            if all([mod in data.keys() for mod in modalities]):
+                break
     scores = data["clinical"].T
     clinical_names = np.load(
         os.path.join(datasetdir, "clinical_names.npy"), allow_pickle=True)
@@ -127,7 +202,9 @@ def get_data(dataset, datasetdir, modalities, dtype):
     meta = dict((key, val.numpy() if isinstance(val, torch.Tensor) else val)
                 for key, val in meta.items())
     del meta["participant_id"]
-    meta.update(dict((key, val) for key, val in zip(clinical_names, scores)))
+    if "full" not in dtype:
+        meta.update(
+            dict((key, val) for key, val in zip(clinical_names, scores)))
     meta_df = pd.DataFrame.from_dict(meta)
     return data, meta_df
 

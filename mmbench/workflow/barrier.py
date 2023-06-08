@@ -20,7 +20,7 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data, get_train_data
+from mmbench.dataset import get_test_data, get_train_data, get_full_data
 from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models
 from brainboard.metric import eval_interpolation
@@ -28,7 +28,7 @@ from mmbench.plotting import mat_display, barrier_display
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
-                          downstream_name, n_coeffs=10):
+                          downstream_name, n_coeffs=10, transfer=False):
     """ Compare the performance barrier interpolating the weights of any two
     pairs of intances of the same network and monitoring a common downstream
     task.
@@ -55,6 +55,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         task.
     n_coeffs: int, default 10
         number of interpolation points
+    transfer: bool, default False
+        Training dataset is different from test dataset
     """
     print_title(f"COMPARE MODEL WEIGHTS: {dataset}")
     benchdir = outdir
@@ -67,9 +69,12 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     data_train, meta_train_df = get_train_data(dataset, datasetdir, modalities)
+    data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
+    if transfer:
+        data = get_full_data(dataset, datasetdir, modalities)
+        data_train, meta_train_df, data_test, meta_test_df = data[0:4]
     assert downstream_name in meta_train_df.columns, (
         f"Specify a downstream task from: {meta_train_df.columns}")
-    data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
     y_train = meta_train_df[downstream_name]
     y_test = meta_test_df[downstream_name]
     for mod in modalities:

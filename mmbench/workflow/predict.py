@@ -142,7 +142,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
 
 
 def get_predictor(data):
-    """ Return a classifier and a ROCAuc metric if the data is of type int or
+    """ Return a classifier and a BAcc metric if the data is of type int or
     str, otherwise a regressor and a MAE metric.
 
     Parameters
