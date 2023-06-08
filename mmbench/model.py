@@ -102,7 +102,7 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(model, data, modalities, n_samples=10, verbose=1):
+def eval_mopoe(model, data, modalities, n_samples=1, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters

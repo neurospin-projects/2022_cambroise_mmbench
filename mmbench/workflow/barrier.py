@@ -16,8 +16,6 @@ import os
 import copy
 from pprint import pprint
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn import metrics as skmetrics
 import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
@@ -26,7 +24,7 @@ from mmbench.dataset import get_test_data, get_train_data
 from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models
 from brainboard.metric import eval_interpolation
-from mmbench.plotting import plot_curve, plot_mat
+from mmbench.plotting import mat_display, barrier_display
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
@@ -150,11 +148,10 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
             coeffs, metrics = eval_interpolation(
                 copy.deepcopy(model1), state1, state2, [data_train, data_test],
                 eval_fn, n_coeffs=n_coeffs, eval_kwargs=kwargs)
-            ref = metrics[-1] * coeffs + (1 - coeffs) * metrics[0]
             points_curve[i1, i2] = metrics
             points_curve[i2, i1] = metrics[::-1]
-            mat[i1, i2] = abs(
-                np.trapz(metrics, coeffs) - np.trapz(ref, coeffs))
+            print(i1,i2)
+            mat[i1, i2] = area(metrics, coeffs)
             mat[i2, i1] = mat[i1, i2]
         vmax = np.max(points_curve)
         vmin = np.min(points_curve)
@@ -181,85 +178,17 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_result(f"barrier interpolation: {barrier_file}, {curve_file}")
 
 
-def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
-                    scale, sname):
-    """ Save barrier curves for a model
+def area(y,x):
+    ref = y[-1] * x + (1 - x) * y[0]
+    area = abs(np.trapz(y, x) - np.trapz(ref, x))
 
-    Parameters
-    ----------
-    coeffs : list
-        the abscissa of the graph.
-    l_metrics : array (n, n, n_coeffs)
-        value matrix of the curve between two models.
-    model_name : str
-        name of the model.
-    downstream : str
-        name of the downstream task.
-    dataset: str
-        the dataset name: euaims or hbn.
-    outdir : str
-        the destination folder.
-    scale : tuple (min, max)
-        min and max values of matrix in matrices
-    sname : str
-        the name of the scorer
-    """
-    print_subtitle(f"Display {model_name}_{downstream} figures...")
-    ncols = 3
-    nrows = 4
-    plt.figure(figsize=np.array((ncols, nrows)) * 4)
-    for idx, row in enumerate(l_metrics):
-        ax = plt.subplot(nrows, ncols, idx + 1)
-        plot_curve(
-            coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
-            fontweight="bold", title=f"from run {idx + 1}")
-        ax.set_ylim(scale[0], scale[1])
-        ax.set_ylabel(sname)
-
-    plt.subplots_adjust(
-        left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
-    plt.suptitle(f"{model_name} {downstream} BARRIER FIGURES", fontsize=20,
-                 y=.95)
-    filename = os.path.join(outdir,
-                            f"barrier_{model_name}_{downstream}_{dataset}.png")
-    plt.savefig(filename)
-    print_result(f"BARRIER: {filename}")
-
-
-def mat_display(matrices, dataset, outdir, downstream_name, scale):
-    """ Plot area matrices
-
-    Parameters
-    ----------
-    matrices : dict
-        Area matrix dictionaries by models.
-    dataset: str
-        the dataset name: euaims or hbn.
-    outdir : str
-        the destination folder.
-    downstream_name: str
-        the name of the column that contains the downstream classification
-        task.
-    scale : tuple (min, max)
-        min and max values of matrix in matrices
-    """
-    ncols = 2
-    nrows = 3
-    plt.figure(figsize=np.array((ncols, nrows)) * 4)
-    for idx, key in enumerate(matrices):
-        ax = plt.subplot(nrows, ncols, idx + 1)
-        plot_mat(
-            key, matrices[key], ax=ax, figsize=None, dpi=300, fontsize=7,
-            fontweight="bold", title=f"{key}", vmin=scale[0], vmax=scale[1])
-        ax.set_xticks(np.arange(0, 10, 2))
-        ax.set_yticks(np.arange(0, 10, 2))
-        ax.set_xticklabels(np.arange(1, 11, 2))
-        ax.set_yticklabels(np.arange(1, 11, 2))
-        plt.colorbar(ax.images[0], ax=ax)
-    plt.subplots_adjust(
-        left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
-    plt.suptitle(f"{dataset} BARRIER AREA", fontsize=20, y=.95)
-    filename = os.path.join(outdir,
-                            f"barrier_area_{downstream_name}_{dataset}.png")
-    plt.savefig(filename)
-    print_result(f"AREA: {filename}")
+    slope = (y[-1] - y[0]) / (x[-1] - x[0])
+    intercept = y[0] - slope * x[0]
+    ref = slope * x + intercept
+    upref = [max(y1, y2) for y1, y2 in zip(ref, y)]
+    downref = [min(y1, y2) for y1, y2 in zip(ref, y)]
+    area2 = np.trapz(upref, x) - np.trapz(downref, x)
+    print("area ", area)
+    print("area2", area2)
+    print("")
+    return area
