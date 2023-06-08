@@ -18,3 +18,4 @@ from .rsa import benchmark_rsa_exp
 from .predict import benchmark_pred_exp
 from .similarity import benchmark_feature_similarity_exp
 from .barrier import benchmark_barrier_exp
+from .baseline import benchmark_baseline
