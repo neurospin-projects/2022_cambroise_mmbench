@@ -56,11 +56,29 @@ def get_test_data(dataset, datasetdir, modalities):
 
 def get_full_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
+        Returns
+    -------
+    data_train: dict
+        the loaded data for each modality.
+    metadata_train: DataFrame
+        the associated meta information.
+    data_test: dict
+        the loaded data for each modality.
+    metadata_test: DataFrame
+        the associated meta information.
+    data: dict
+        the loaded data for each modality.
+    metadata: DataFrame
+        the associated meta information.
     """
     threshold = IQ_MAP.get(dataset)
     data, meta_df = get_data(dataset, datasetdir, modalities, dtype="full")
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
-    return data, meta_df
+    data_test, meta_test_df = get_data(dataset, datasetdir, modalities, dtype="full_test")
+    data_test, meta_test_df = iq_threshold(dataset, data_test, meta_test_df, threshold=threshold)
+    data_train, meta_train_df = get_data(dataset, datasetdir, modalities, dtype="full_train")
+    data_train, meta_train_df = iq_threshold(dataset, data_train, meta_train_df, threshold=threshold)
+    return data_train, meta_train_df, data_test, meta_test_df, data, meta_df
 
 
 def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
@@ -108,7 +126,7 @@ def get_data(dataset, datasetdir, modalities, dtype):
     modalities: list of str
         the modalities to load.
     dtype: str
-        the data type: 'train', 'test', or 'full'.
+        the data type: 'train', 'test', 'full_test', 'full_train' or 'full'.
 
     Returns
     -------
@@ -122,9 +140,13 @@ def get_data(dataset, datasetdir, modalities, dtype):
         dataset = trainset
     elif dtype == "full":
         datasets = [trainset, testset]
+    elif dtype == "full_test":
+        datasets = [testset]
+    elif dtype == "full_train":
+        datasets = [trainset]
     else:
         dataset = testset
-    if dtype == "full":
+    if "full" in dtype:
         all_data = {"rois": [], "clinical": []}
         all_meta = None
         for dataset in datasets:
@@ -145,7 +167,8 @@ def get_data(dataset, datasetdir, modalities, dtype):
                         all_meta[key].append(val)
         clinical_size = set([item.size(1) if item is not None else 0
                              for item in all_data["clinical"]])
-        clinical_size.remove(0)
+        if len(clinical_size) > 1:
+            clinical_size.remove(0)
         assert len(clinical_size) == 1, "All blocks must have the same size."
         clinical_size = list(clinical_size)[0]
         for idx, (roi_items, clin_items) in enumerate(
@@ -174,7 +197,8 @@ def get_data(dataset, datasetdir, modalities, dtype):
     meta = dict((key, val.numpy() if isinstance(val, torch.Tensor) else val)
                 for key, val in meta.items())
     del meta["participant_id"]
-    meta.update(dict((key, val) for key, val in zip(clinical_names, scores)))
+    if "full" not in dtype:
+        meta.update(dict((key, val) for key, val in zip(clinical_names, scores)))
     meta_df = pd.DataFrame.from_dict(meta)
     return data, meta_df
 
