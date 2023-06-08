@@ -150,7 +150,6 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
                 eval_fn, n_coeffs=n_coeffs, eval_kwargs=kwargs)
             points_curve[i1, i2] = metrics
             points_curve[i2, i1] = metrics[::-1]
-            print(i1,i2)
             mat[i1, i2] = area(metrics, coeffs)
             mat[i2, i1] = mat[i1, i2]
         vmax = np.max(points_curve)
@@ -178,7 +177,21 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_result(f"barrier interpolation: {barrier_file}, {curve_file}")
 
 
-def area(y,x):
+def area(y, x):
+    """calculation of absolute area between curve y and its base line
+
+    Parameters
+    ----------
+    y: list
+        the points of the curve.
+    x: list
+        x-axis.
+
+    Returns
+    -------
+    area: float
+        area of the curve y relative to its base line.
+    """
     ref = y[-1] * x + (1 - x) * y[0]
     area = abs(np.trapz(y, x) - np.trapz(ref, x))
 
