@@ -70,7 +70,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     data_train, meta_train_df = get_train_data(dataset, datasetdir, modalities)
     data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
     if transfer:
-        data_train, meta_train_df, data_test, meta_test_df,_,_ = get_full_data(dataset, datasetdir, modalities)
+        data = get_full_data(dataset, datasetdir, modalities)
+        data_train, meta_train_df, data_test, meta_test_df = data[0:4]
     assert downstream_name in meta_train_df.columns, (
         f"Specify a downstream task from: {meta_train_df.columns}")
     y_train = meta_train_df[downstream_name]

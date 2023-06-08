@@ -26,7 +26,8 @@ from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models, eval_models
 
 
-def benchmark_latent_exp(dataset, datasetdir, configfile, outdir, transfer=False):
+def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
+                         transfer=False):
     """ Retrieve the learned latent space of different models using a
     N samplings scheme.
 
@@ -67,7 +68,9 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir, transfer=False
     data, meta_df = get_test_data(dataset, datasetdir, modalities)
     data_tr, meta_df_tr = get_train_data(dataset, datasetdir, modalities)
     if transfer is True:
-        data_tr, meta_df_tr,data, meta_df,_,_ = get_full_data(dataset, datasetdir, modalities)
+        data_tr, meta_df_tr, data, meta_df, _, _ = get_full_data(dataset,
+                                                                 datasetdir,
+                                                                 modalities)
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
         data_tr[mod] = data_tr[mod].to(device).float()

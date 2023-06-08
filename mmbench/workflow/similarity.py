@@ -27,7 +27,8 @@ from mmbench.model import get_models, eval_models
 from brainboard.metric import linear_cka, layer_at, get_named_layers
 
 
-def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir, transfer=False):
+def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
+                                     transfer=False):
     """ Define the Centered Kernel Alignment (CKA) as a measure of similarity
     between two output features in a layer of a network architecture given
     any two pairs of instances of a network.
@@ -64,7 +65,9 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir, tr
     print_text(f"modalities: {modalities}")
     data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
     if transfer:
-        _, _, _, _, data_test, meta_test_df = get_full_data(dataset, datasetdir, modalities)
+        _, _, _, _, data_test, meta_test_df = get_full_data(dataset,
+                                                            datasetdir,
+                                                            modalities)
     for mod in modalities:
         data_test[mod] = data_test[mod].to(device).float()
     print_text([(key, arr.shape) for key, arr in data_test.items()])
