@@ -15,6 +15,8 @@ Define the baseline model.
 import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 from sklearn import linear_model
 from sklearn.model_selection import cross_val_score
 import torch
@@ -22,6 +24,7 @@ from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_full_data
 from mmbench.workflow.predict import get_predictor
+from mmbench.plotting import plot_bar
 
 
 def benchmark_baseline(datasetdir, outdir, n_samples=10):
@@ -48,13 +51,12 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     _data = get_full_data(dataset, datasetdir, modalities)
-    data_tr, meta_tr, data, meta = _data[0:4]
+    data_tr, meta_df_tr, data, meta_df = _data[0:4]
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
         data_tr[mod] = data_tr[mod].to(device).float()
-    meta_df, meta_df_tr = {}, {} 
-    meta_df["asd"] = meta["asd"]
-    meta_df_tr["asd"] = meta_tr["asd"]
+    meta_df = meta_df[['asd']]
+    meta_df_tr = meta_df_tr[['asd']]
     print_text([(key, arr.shape) for key, arr in data.items()])
     print_text(meta_df)
     print_text([(key, arr.shape) for key, arr in data_tr.items()])
@@ -67,9 +69,12 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
 
     print_subtitle("Training models...")
     models = []
+    samples = data_tr["rois"].cpu()
+    y = meta_df_tr["asd"]
+    qname = "asd"
     for i in range(n_samples):
         models.append(linear_model.LogisticRegression())
-        models[i].fit(data_tr,meta_tr) # train_test_split ?
+        models[i].fit(samples,y) # train_test_split ?
         print(models[i]) 
 
     print_subtitle("Evaluate models...")
@@ -77,11 +82,11 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
     results_tr = {}
     res, res_cv= [], []
     print_text("model: logistic regression")
-    _, scorer, name = get_predictor(meta_df_tr["asd"])
-    for model in models:
-        scores = cross_val_score(model, data_tr, meta_df_tr["asd"], cv=5, scoring=scorer, n_jobs=-1)
+    _, scorer, name = get_predictor(y)
+    for model in tqdm(models):
+        scores = cross_val_score(model, samples, y, cv=5, scoring=scorer, n_jobs=-1)
         res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
-        res.append(scorer(model, data, meta_df["asd"]))
+        res.append(scorer(model, data["rois"].cpu(), meta_df))
     res_cv_df = pd.DataFrame.from_dict(
                 {"model": range(n_samples), "score": res_cv})
     res_cv_df["qname"] = "asd"
@@ -90,8 +95,33 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
     predict_df = pd.concat([predict_df[col].explode() for col in predict_df],
                            axis="columns")
-    predict_df.to_csv(os.path.join(benchdir, "predict.tsv"), sep="\t",
+    predict_df.to_csv(os.path.join(benchdir, "baseline.tsv"), sep="\t",
                       index=False)
-    _df = pd.concat(res_cv_df)
-    _df.to_csv(os.path.join(benchdir, "predict_cv.tsv"), sep="\t",
+    _df = pd.concat([res_cv_df])
+    _df.to_csv(os.path.join(benchdir, "baseline_cv.tsv"), sep="\t",
                index=False)
+
+    print_subtitle("Display statistics...")
+    ncols = 1
+    nrows = 1
+    plt.figure(figsize=np.array((ncols, nrows)) * 4)
+    pairwise_stats = []
+    ax = plt.subplot(nrows, ncols, 1)
+    pairwise_stat_df = plot_bar(
+        qname, predict_results, ax=ax, figsize=None, dpi=300, fontsize=7,
+        fontsize_star=12, fontweight="bold", line_width=2.5,
+        marker_size=3, title=qname.upper(),
+        do_one_sample_stars=False, palette="Set2", yname=name)
+    if pairwise_stat_df is not None:
+        pairwise_stats.append(pairwise_stat_df)
+    if len(pairwise_stats) > 0:
+        pairwise_stat_df = pd.concat(pairwise_stats)
+        pairwise_stat_df.to_csv(
+            os.path.join(benchdir, "predict_pairwise_stats.tsv"), sep="\t",
+            index=False)
+    plt.subplots_adjust(
+        left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
+    plt.suptitle(f"{dataset.upper()} BASELINE RESULTS", fontsize=20, y=.95)
+    filename = os.path.join(benchdir, f"baseline_{dataset}.png")
+    plt.savefig(filename)
+    print_result(f"BASELINE: {filename}")
