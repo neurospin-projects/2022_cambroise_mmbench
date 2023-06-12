@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn import linear_model
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
 import torch
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
@@ -27,7 +27,7 @@ from mmbench.workflow.predict import get_predictor
 from mmbench.plotting import plot_bar
 
 
-def benchmark_baseline(datasetdir, outdir, n_samples=10):
+def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     """ Train and test a baseline model on euaims
 
     Parameters
@@ -36,8 +36,12 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
         the path to the euaims associated data.
     outdir: str
         the destination folder.
-    n_samples: int, default 10
+    n_iter: int, default 10
         the number of models trained.
+    random_state: list of int, default None
+        controls the shuffling applied to the data before applying the split.
+        Pass a list of n_sampoles int for reproducible output across multiple
+        function calls.
     """
     dataset = "euaims"
     print_title(f"GET MODELS LATENT VARIABLES: {dataset}")
@@ -55,8 +59,8 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
         data_tr[mod] = data_tr[mod].to(device).float()
-    meta_df = meta_df[['asd']]
-    meta_df_tr = meta_df_tr[['asd']]
+    meta_df = meta_df[['asd']] - 1
+    meta_df_tr = meta_df_tr[['asd']] - 1
     print_text([(key, arr.shape) for key, arr in data.items()])
     print_text(meta_df)
     print_text([(key, arr.shape) for key, arr in data_tr.items()])
@@ -70,25 +74,30 @@ def benchmark_baseline(datasetdir, outdir, n_samples=10):
     print_subtitle("Training models...")
     models = []
     samples = data_tr["rois"].cpu()
-    y = meta_df_tr["asd"]
+    samples_test = data["rois"].cpu()
+    # scale des colonnes
+    y_train = meta_df_tr["asd"]
+    y_true = meta_df["asd"]
     qname = "asd"
-    for i in range(n_samples):
-        models.append(linear_model.LogisticRegression())
-        models[i].fit(samples,y) # train_test_split ?
-        print(models[i]) 
+    if random_state is None:
+        random_state = [None] * n_iter
+    for idx in range(n_iter):
+        Xi_train, _, Yi_train, _ = train_test_split(
+            samples, y_train, test_size=0.2, random_state=random_state[idx])
+        models.append(linear_model.LogisticRegression(max_iter=200))
+        models[idx].fit(Xi_train,Yi_train)
+        print(models[idx]) 
 
     print_subtitle("Evaluate models...")
-    results = {}
-    results_tr = {}
     res, res_cv= [], []
     print_text("model: logistic regression")
-    _, scorer, name = get_predictor(y)
+    _, scorer, name = get_predictor(y_train)
     for model in tqdm(models):
-        scores = cross_val_score(model, samples, y, cv=5, scoring=scorer, n_jobs=-1)
+        scores = cross_val_score(model, samples, y_train, cv=5, scoring=scorer, n_jobs=-1)
         res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
-        res.append(scorer(model, data["rois"].cpu(), meta_df))
+        res.append(scorer(model, samples_test, y_true))
     res_cv_df = pd.DataFrame.from_dict(
-                {"model": range(n_samples), "score": res_cv})
+                {"model": range(n_iter), "score": res_cv})
     res_cv_df["qname"] = "asd"
     print(res_cv_df)
     predict_results = {"asd": {"LogisticReg_ROI_euaims": np.asarray(res)}}
