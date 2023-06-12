@@ -179,7 +179,6 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
 
 def area(y, x):
     """calculation of absolute area between curve y and its base line
-
     Parameters
     ----------
     y: list
@@ -194,14 +193,4 @@ def area(y, x):
     """
     ref = y[-1] * x + (1 - x) * y[0]
     area = abs(np.trapz(y, x) - np.trapz(ref, x))
-
-    slope = (y[-1] - y[0]) / (x[-1] - x[0])
-    intercept = y[0] - slope * x[0]
-    ref = slope * x + intercept
-    upref = [max(y1, y2) for y1, y2 in zip(ref, y)]
-    downref = [min(y1, y2) for y1, y2 in zip(ref, y)]
-    area2 = np.trapz(upref, x) - np.trapz(downref, x)
-    print("area ", area)
-    print("area2", area2)
-    print("")
     return area
