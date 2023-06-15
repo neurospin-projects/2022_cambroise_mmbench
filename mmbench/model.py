@@ -149,7 +149,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, transfer=False,
                 continue
             if name == "joint":
                 nan_indices = torch.any(torch.isnan(z_mu), dim=1)
-                z_mu[nan_indices] = z_mu[~nan_indices].mean()
+                z_mu[nan_indices] = z_mu.nanmean(dim=0)
                 z_logvar[nan_indices] = z_logvar[~nan_indices].mean()
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
