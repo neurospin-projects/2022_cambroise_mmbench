@@ -102,18 +102,18 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(models, data, modalities, n_samples=10, verbose=1):
+def eval_mopoe(model, data, modalities, n_samples=1, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
     ----------
-    models: Module
+    model: Module
         input model.
     data: dict
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    n_samples: int, default 10
+    n_samples: int, default 1
         the number of time to sample the posterior.
     verbose: int, default 1
         control the verbosity level.
@@ -124,7 +124,7 @@ def eval_mopoe(models, data, modalities, n_samples=10, verbose=1):
         the generated latent representations.
     """
     embeddings = {}
-    inf_data = models.inference(data)
+    inf_data = model.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     key = "MoPoe"
@@ -268,6 +268,7 @@ def eval_pls(model, data, modalities, n_samples=1, verbose=1):
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
     X_test_r = model.transform(
         X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
+    X_test_r = X_test_r[::-1]
     for idx, name in enumerate(modalities):
         code = np.array(X_test_r[idx])
         if verbose > 0:
@@ -320,7 +321,7 @@ def eval_neuroclav(model, data, modalities, n_samples=1, verbose=1):
         the generated latent representations.
     """
     embeddings = {}
-    assert "rois" in modalities  # TODO: use function parameters
+    assert "rois" in modalities
     view_data = data["rois"]
     model.eval()
     with torch.no_grad():
