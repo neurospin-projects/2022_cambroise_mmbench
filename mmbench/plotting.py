@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from scipy.stats import ttest_1samp
 from scipy.stats import ttest_ind as ttest
-from mmbench.color_utils import (print_subtitle, print_result)
+from mmbench.color_utils import print_subtitle, print_result
 
 
 def plot_barrier_clusters(data, labels, scores, task_name, metric_name):
@@ -107,9 +107,9 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     title: str, default None
         the title displayed on the figure.
     vmin: float, default None
-        minimum value on y-axis of figures
+        minimum value on y-axis of figures.
     vmax: float, default None
-        maximum value on y-axis of figures
+        maximum value on y-axis of figures.
     """
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
@@ -164,8 +164,8 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
         optionally, display pairwise statistics.
     do_one_sample_stars: bool, default True
         optionally, display sampling statistics.
-    yname: str, default "model fit (r)"
-        optionally, name of the metric on y-axis
+    yname: str, default 'model fit (r)'
+        optionally, name of the metric on y-axis.
 
     Returns
     -------
@@ -285,7 +285,8 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 
 def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
                     scale, sname):
-    """ Save barrier curves for a model
+    """ Save barrier curves for a model.
+
     Parameters
     ----------
     coeffs : list
@@ -301,9 +302,9 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
     outdir : str
         the destination folder.
     scale : tuple (min, max)
-        min and max values of matrix in matrices
+        min and max values of matrix in matrices.
     sname : str
-        the name of the scorer
+        the name of the scorer.
     """
     print_subtitle(f"Display {model_name}_{downstream} figures...")
     ncols = 3
@@ -328,11 +329,12 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
 
 
 def mat_display(matrices, dataset, outdir, downstream_name, scale):
-    """ Plot area matrices
+    """ Plot area matrices.
+
     Parameters
     ----------
     matrices : dict
-        Area matrix dictionaries by models.
+        area matrix dictionaries by models.
     dataset: str
         the dataset name: euaims or hbn.
     outdir : str
@@ -341,7 +343,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
         the name of the column that contains the downstream classification
         task.
     scale : tuple (min, max)
-        min and max values of matrix in matrices
+        min and max values of matrix in matrices.
     """
     ncols = 2
     nrows = 3

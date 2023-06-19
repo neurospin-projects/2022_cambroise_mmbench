@@ -54,7 +54,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         the name of the column that contains the downstream classification
         task.
     n_coeffs: int, default 10
-        number of interpolation points
+        number of interpolation points.
     """
     print_title(f"COMPARE MODEL WEIGHTS: {dataset}")
     benchdir = outdir
@@ -178,7 +178,9 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
 
 
 def area(y, x):
-    """calculation of absolute area between curve y and its base line
+    """ Calculation of the area between a curve y and the line (ax + b)
+    joining its two extrem values.
+
     Parameters
     ----------
     y: list
@@ -191,6 +193,10 @@ def area(y, x):
     area: float
         area of the curve y relative to its base line.
     """
-    ref = y[-1] * x + (1 - x) * y[0]
-    area = abs(np.trapz(y, x) - np.trapz(ref, x))
+    slope = (y[-1] - y[0]) / (x[-1] - x[0])
+    intercept = y[0] - slope * x[0]
+    ref = slope * x + intercept
+    upref = [max(y1, y2) for y1, y2 in zip(ref, y)]
+    downref = [min(y1, y2) for y1, y2 in zip(ref, y)]
+    area = np.trapz(upref, x) - np.trapz(downref, x)
     return area

@@ -153,12 +153,12 @@ def get_predictor(data):
     Returns
     -------
     predictor: linear_model
-        A classifier or a regressor
+        A classifier or a regressor.
     scorer: callable
         a scorer callable object/function with signature which returns a
         single value.
     name: str
-        the name of the scorer
+        the name of the scorer.
     """
     data = np.array(data)
     is_int = ((data - data.astype(int) == 0).all()
