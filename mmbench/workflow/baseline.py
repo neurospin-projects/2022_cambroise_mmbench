@@ -75,6 +75,9 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     models = []
     samples = data_tr["rois"].cpu()
     samples_test = data["rois"].cpu()
+    print(samples)
+    samples = torch.nn.functional.normalize(samples, dim=0)
+    samples_test = torch.nn.functional.normalize(samples_test, dim=0)
     # scale des colonnes
     y_train = meta_df_tr["asd"]
     y_true = meta_df["asd"]
