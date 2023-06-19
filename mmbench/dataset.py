@@ -54,11 +54,22 @@ def get_test_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
-def get_full_data(dataset, datasetdir, modalities):
+def get_train_full_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="full")
+    data, meta_df = get_data(dataset, datasetdir, modalities,
+                             dtype="full_train")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
+
+
+def get_test_full_data(dataset, datasetdir, modalities):
+    """ See `get_data` and `iq_threshold` for documentation.
+    """
+    threshold = IQ_MAP.get(dataset)
+    data, meta_df = get_data(dataset, datasetdir, modalities,
+                             dtype="full_test")
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
@@ -108,7 +119,7 @@ def get_data(dataset, datasetdir, modalities, dtype):
     modalities: list of str
         the modalities to load.
     dtype: str
-        the data type: 'train', 'test', or 'full'.
+        the data type: 'train', 'test', 'full_test', 'full_train' or 'full'.
 
     Returns
     -------
@@ -122,9 +133,13 @@ def get_data(dataset, datasetdir, modalities, dtype):
         dataset = trainset
     elif dtype == "full":
         datasets = [trainset, testset]
+    elif dtype == "full_test":
+        datasets = [testset]
+    elif dtype == "full_train":
+        datasets = [trainset]
     else:
         dataset = testset
-    if dtype == "full":
+    if "full" in dtype:
         all_data = {"rois": [], "clinical": []}
         all_meta = None
         for dataset in datasets:
@@ -145,7 +160,8 @@ def get_data(dataset, datasetdir, modalities, dtype):
                         all_meta[key].append(val)
         clinical_size = set([item.size(1) if item is not None else 0
                              for item in all_data["clinical"]])
-        clinical_size.remove(0)
+        if len(clinical_size) > 1:
+            clinical_size.remove(0)
         assert len(clinical_size) == 1, "All blocks must have the same size."
         clinical_size = list(clinical_size)[0]
         for idx, (roi_items, clin_items) in enumerate(
