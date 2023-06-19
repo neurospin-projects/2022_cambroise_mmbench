@@ -80,7 +80,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
         n_samples, _, _ = samples.shape
 
     print_subtitle("Train model...")
-    res_cv_list = []
+    res_cv_list, sname = [], []
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
@@ -90,13 +90,12 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             samples_train = latent_data_train[latent_key]
             samples_test = latent_data_test[latent_key]
             for idx in tqdm(range(n_samples)):
-                clf, scoring = get_predictor(y_train)
+                clf, scorer, name = get_predictor(y_train)
                 scores = cross_val_score(
-                    clf, samples_train[idx], y_train, cv=5, scoring=scoring,
+                    clf, samples_train[idx], y_train, cv=5, scoring=scorer,
                     n_jobs=-1)
                 clf.fit(samples_train[idx], y_train)
                 res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
-                scorer = metrics.get_scorer(scoring)
                 res.append(scorer(clf, samples_test[idx], y_test))
             res_cv_df = pd.DataFrame.from_dict(
                 {"model": range(n_samples), "score": res_cv})
@@ -105,6 +104,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             print(res_cv_df)
             res_cv_list.append(res_cv_df)
             predict_results.setdefault(qname, {})[latent_key] = np.asarray(res)
+        sname.append(name)
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
     predict_df = pd.concat([predict_df[col].explode() for col in predict_df],
                            axis="columns")
@@ -125,7 +125,7 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
             qname, predict_results, ax=ax, figsize=None, dpi=300, fontsize=7,
             fontsize_star=12, fontweight="bold", line_width=2.5,
             marker_size=3, title=qname.upper(),
-            do_one_sample_stars=False, palette="Set2")
+            do_one_sample_stars=False, palette="Set2", yname=sname[idx])
         if pairwise_stat_df is not None:
             pairwise_stats.append(pairwise_stat_df)
     if len(pairwise_stats) > 0:
@@ -154,17 +154,23 @@ def get_predictor(data):
     -------
     predictor: linear_model
         A classifier or a regressor
-    scoring: str or callable
+    scorer: callable
         a scorer callable object/function with signature which returns a
         single value.
+    name: str
+        the name of the scorer
     """
     data = np.array(data)
     is_int = ((data - data.astype(int) == 0).all()
               if not isinstance(data[0], str) else False)
     if isinstance(data[0], str) or is_int:
         predictor = linear_model.RidgeClassifier()
-        scoring = "balanced_accuracy"
+        scorer = metrics.get_scorer("balanced_accuracy")
+        name = "BAcc"
     else:
         predictor = linear_model.Ridge(alpha=.5)
-        scoring = "neg_mean_absolute_error"
-    return predictor, scoring
+        scorer = metrics.get_scorer("neg_mean_absolute_error")
+        scorer = metrics.make_scorer(scorer._score_func,
+                                     greater_is_better=True)
+        name = "MAE"
+    return predictor, scorer, name
