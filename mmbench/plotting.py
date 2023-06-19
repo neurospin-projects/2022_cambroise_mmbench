@@ -16,10 +16,69 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from scipy.stats import ttest_1samp
 from scipy.stats import ttest_ind as ttest
+
+
+def plot_barrier_clusters(data, labels, scores, task_name, metric_name):
+    """ Display the barrier clustering results.
+
+    Parameters
+    ----------
+    data: (N, t)
+        the time courses obtained when interpolating the weights of any two
+        pairs of intances.
+    labels: (N, )
+        the time courses clusters.
+    scores: (K, )
+        the clustering metrics used to determine to best number of clusters.
+    task_name: str
+        the task name used in the barrier expermiement.
+    metric_name: str
+        metric name used to select the best number of clusters.
+    """
+    fontparams = {"font.size": 11, "font.weight": "bold",
+                  "font.family": "serif", "font.style": "italic"}
+    plt.rcParams.update(fontparams)
+    labelparams = {"size": 16, "weight": "semibold", "family": "serif"}
+    unique_labels = np.unique(labels)
+    n_cluster = len(unique_labels)
+    max_clusters = len(scores)
+    alpha = range(data.shape[-1])
+    xk = range(1, max_clusters + 1)
+    cmap = cm.get_cmap("hsv", max_clusters)
+    fig = plt.figure()
+    plt.subplot(1, 2, 1)
+    ax = plt.gca()
+    for label in unique_labels:
+        ts = data[labels == label]
+        mean_ts = np.mean(ts, axis=0)
+        std_ts = np.std(ts, axis=0)
+        ax.plot(alpha, mean_ts, label=f"basin {label + 1}", c=cmap(label))
+        ax.fill_between(alpha, mean_ts - std_ts, mean_ts + std_ts, alpha=0.3,
+                        facecolor=cmap(label))
+    ax.spines[["right", "top"]].set_visible(False)
+    ax.set_xlabel(r"$\alpha$", labelparams)
+    ax.set_ylabel(task_name, labelparams)
+    handles, labels = ax.get_legend_handles_labels()
+    kw = dict(ncol=len(handles), loc="lower center", frameon=False)
+    leg = ax.legend(handles, labels, bbox_to_anchor=[0.5, 1.04], **kw)
+    ax.add_artist(leg)
+    fig.subplots_adjust(top=0.9)
+    plt.subplot(1, 2, 2)
+    ax = plt.gca()
+    ax.plot(xk, scores)
+    plt.vlines(n_cluster, plt.ylim()[0], plt.ylim()[1], linestyles="dashed")
+    plt.text(n_cluster, (plt.ylim()[0] + plt.ylim()[1]) / 2, f"k={n_cluster}",
+             ha="center", va="center", rotation="vertical",
+             backgroundcolor="white")
+    ax.spines[["right", "top"]].set_visible(False)
+    ax.set_xlabel("k", labelparams)
+    ax.set_ylabel(metric_name, labelparams)
+    return fig
 
 
 def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
