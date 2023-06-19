@@ -43,6 +43,7 @@ def ts_clustering(X, max_clusters=10, area=None):
     from tslearn.preprocessing import TimeSeriesScalerMinMax
 
     scores = []
+    y_pred = []
     n_clusters = range(1, max_clusters + 1)
     for n_cluster in n_clusters:
         if area is None:
@@ -51,18 +52,19 @@ def ts_clustering(X, max_clusters=10, area=None):
                 n_clusters=n_cluster, metric="dtw", max_iter=20,
                 random_state=42)
             model.fit(X_train)
-            y_pred = model.labels_
+            y_pred.append(model.labels_)
             scores.append(model.inertia_)
         else:
             X_train = StandardScaler().fit_transform(X)
             model = GaussianMixture(
-                n_components=n_cluster, covariance_type="full")
+                n_components=n_cluster, covariance_type="diag",
+                init_params="k-means++", verbose=100, n_init=5)
             model.fit(X_train)
-            y_pred = model.predict(X_train)
+            y_pred.append(model.predict(X_train))
             scores.append(model.bic(X_train))
     if area is None:
         n_cluster = KneeLocator(n_clusters, scores, curve="convex",
                                 direction="decreasing").knee
     else:
         n_cluster = n_clusters[np.argmin(scores)]
-    return y_pred, n_cluster, scores
+    return y_pred[n_cluster - 1], n_cluster, scores
