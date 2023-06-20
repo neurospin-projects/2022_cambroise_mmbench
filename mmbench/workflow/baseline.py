@@ -22,7 +22,7 @@ from sklearn.model_selection import cross_val_score, train_test_split
 import torch
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_full_data
+from mmbench.dataset import get_train_full_data, get_test_full_data
 from mmbench.workflow.predict import get_predictor
 from mmbench.plotting import plot_bar
 
@@ -54,8 +54,8 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
-    _data = get_full_data(dataset, datasetdir, modalities)
-    data_tr, meta_df_tr, data, meta_df = _data[0:4]
+    data_tr, meta_df_tr = get_train_full_data(dataset, datasetdir, modalities)
+    data, meta_df = get_test_full_data(dataset, datasetdir, modalities)
     for mod in modalities:
         data[mod] = data[mod].to(device).float()
         data_tr[mod] = data_tr[mod].to(device).float()
