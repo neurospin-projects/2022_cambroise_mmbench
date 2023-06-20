@@ -88,19 +88,20 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
         Xi_train, _, Yi_train, _ = train_test_split(
             samples, y_train, test_size=0.2, random_state=random_state[idx])
         models.append(linear_model.LogisticRegression(max_iter=100))
-        models[idx].fit(Xi_train,Yi_train)
-        print(models[idx]) 
+        models[idx].fit(Xi_train, Yi_train)
+        print(models[idx])
 
     print_subtitle("Evaluate models...")
-    res, res_cv= [], []
+    res, res_cv = [], []
     print_text("model: logistic regression")
     _, scorer, name = get_predictor(y_train)
     for model in tqdm(models):
-        scores = cross_val_score(model, samples, y_train, cv=5, scoring=scorer, n_jobs=-1)
+        scores = cross_val_score(model, samples, y_train, cv=5, scoring=scorer,
+                                 n_jobs=-1)
         res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
         res.append(scorer(model, samples_test, y_true))
-    res_cv_df = pd.DataFrame.from_dict(
-                {"model": range(n_iter), "score": res_cv})
+    res_cv_df = pd.DataFrame.from_dict({"model": range(n_iter),
+                                        "score": res_cv})
     res_cv_df["qname"] = "asd"
     print(res_cv_df)
     predict_results = {"asd": {"LogisticReg_ROI_euaims": np.asarray(res)}}
