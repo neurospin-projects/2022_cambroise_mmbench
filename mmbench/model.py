@@ -20,9 +20,8 @@ from torch.distributions import Normal
 from brainite.models import MCVAE
 import mopoe
 from mopoe.multimodal_cohort.experiment import MultimodalExperiment
+from mmbench.utils import listify
 from mmbench.color_utils import print_text
-from sklearn.linear_model import LinearRegression
-from mmbench.dataset import get_train_data
 
 
 def get_models(get_fct, checkpointfile, *args, **kwargs):
@@ -104,8 +103,7 @@ def get_mopoe(checkpointfile):
     return experiment.mm_vae
 
 
-def eval_mopoe(model, data, modalities, n_samples=1, transfer=False,
-               verbose=1):
+def eval_mopoe(model, data, modalities, n_samples=1, verbose=1):
     """ Evaluate the MOPOE model.
 
     Parameters
@@ -118,8 +116,6 @@ def eval_mopoe(model, data, modalities, n_samples=1, transfer=False,
         names of the model input views.
     n_samples: int, default 1
         the number of time to sample the posterior.
-    transfer: bool, default Fasle
-        causes the zeros of the clinical data, put to true to make a transfer
     verbose: int, default 1
         control the verbosity level.
 
@@ -128,29 +124,34 @@ def eval_mopoe(model, data, modalities, n_samples=1, transfer=False,
     embeddings: dict
         the generated latent representations.
     """
+    missing_modalities = [key for key, val in data.items() if val is None]
+    complete_modalities = list(set(modalities) - set(missing_modalities))
+    if len(complete_modalities) == 0:
+        raise ValueError("All modalities are missing.")
+    n_data = len(data[complete_modalities[0]])
+    for name in missing_modalities:
+        shape = [n_data] + list(model.modalities[name].data_size)
+        dtype = data[complete_modalities[0]].dtype
+        device = data[complete_modalities[0]].device
+        data[name] = torch.from_numpy(np.full(shape, np.nan)).to(device,
+                                                                 dtype=dtype)
     embeddings = {}
-    if transfer:
-        device = data["clinical"].device
-        dtype = data["clinical"].dtype
-        data["clinical"] = torch.from_numpy(np.full(data["clinical"].shape,
-                                                    np.nan))
-        data["clinical"] = data["clinical"].to(device, dtype=dtype)
     inf_data = model.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     key = "MoPoe"
     for idx, name in enumerate(modalities + ["joint"]):
+        if name in missing_modalities:
+            continue
         z_mu, z_logvar = latents[idx]
         if z_mu is None:
             key = "MoPoeClav"
             continue
-        if transfer:
-            if name == "clinical":
-                continue
-            if name == "joint":
-                nan_indices = torch.any(torch.isnan(z_mu), dim=1)
-                z_mu[nan_indices] = z_mu[~nan_indices].mean()
-                z_logvar[nan_indices] = z_logvar[~nan_indices].mean()
+        # remove nan coming from missing modalities
+        if name == "joint":
+            nan_indices = torch.any(torch.isnan(z_mu), dim=1)
+            z_mu[nan_indices] = z_mu.nanmean(dim=0)
+            z_logvar[nan_indices] = z_logvar[~nan_indices].mean()
         q = Normal(loc=z_mu, scale=torch.exp(0.5 * z_logvar))
         if n_samples == 1:
             z_samples = q.loc
@@ -192,7 +193,7 @@ def get_smcvae(checkpointfile, n_channels, n_feats, **kwargs):
 
 
 def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
-                ndim=None, transfer=None, verbose=1):
+                ndim=None, verbose=1):
     """ Evaluate the sMCVAE model.
 
     Parameters
@@ -209,8 +210,6 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         value for thresholding. If None, no thresholding is applied.
     ndim: int, default None
         number of dimensions to keep.
-    transfer: tuple, (train_dataset, train_datasetdir), default None
-        causes the interpolation of the clinical data
     verbose: int, default 1
         control the verbosity level.
 
@@ -219,16 +218,21 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
     embeddings: dict
         the generated latent representations.
     """
+    missing_modalities = [key for key, val in data.items() if val is None]
+    complete_modalities = list(set(modalities) - set(missing_modalities))
+    if len(complete_modalities) == 0:
+        raise ValueError("All modalities are missing.")
+    n_data = len(data[complete_modalities[0]])
+    for name in missing_modalities:
+        idx = modalities.index(name)
+        shape = [n_data] + listify(model.n_feats[idx])
+        dtype = data[complete_modalities[0]].dtype
+        device = data[complete_modalities[0]].device
+        data[name] = torch.zeros(shape).to(device, dtype=dtype)
     embeddings = {}
-    if transfer is not None:
-        device = data["clinical"].device
-        dtype = data["clinical"].dtype
-        reg = LinearRegression()
-        data_0, _ = get_train_data(transfer[0], transfer[1], modalities)
-        reg.fit(data_0["rois"].cpu(), data_0["clinical"].cpu())
-        data["clinical"] = torch.from_numpy(reg.predict(data["rois"].cpu()))
-        data["clinical"] = data["clinical"].to(device, dtype=dtype)
-    latents = model.encode([data[mod] for mod in modalities])
+    model.eval()
+    with torch.no_grad():
+        latents = model.encode([data[mod] for mod in modalities])
     if n_samples == 1:
         z_samples = [q.loc.cpu().detach().numpy() for q in latents]
     else:
@@ -247,7 +251,7 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
         z_samples = [z.reshape(n_samples, -1, thres_latent_dim)
                      for z in z_samples]
     for idx, name in enumerate(modalities):
-        if (transfer and name == "clinical"):
+        if name in missing_modalities:
             continue
         code = z_samples[idx]
         embeddings[f"sMCVAE_{name}"] = code
@@ -273,8 +277,7 @@ def get_pls(checkpointfile):
     return model
 
 
-def eval_pls(model, data, modalities, n_samples=1, transfer=False,
-             verbose=1):
+def eval_pls(model, data, modalities, n_samples=1, verbose=1):
     """ Evaluate the PLS model.
 
     Parameters
@@ -284,12 +287,9 @@ def eval_pls(model, data, modalities, n_samples=1, transfer=False,
     data: dict
         the input data organized by views.
     modalities: list of str
-        names of the model input views.
+        names of the model input views (labels, data).
     n_samples: int, default 1
         the number of time to sample the posterior.
-    transfer: bool, default Fasle
-        causes the deletion of the clinical data,
-        put to true to make a transfer
     verbose: int, default 1
         control the verbosity level.
 
@@ -298,15 +298,22 @@ def eval_pls(model, data, modalities, n_samples=1, transfer=False,
     embeddings: dict
         the generated latent representations.
     """
+    if len(modalities) != 2:
+        raise ValueError("Expect 2 views: (labels, data).")
+    missing_modalities = [key for key, val in data.items() if val is None]
+    complete_modalities = list(set(modalities) - set(missing_modalities))
+    if len(complete_modalities) == 0:
+        raise ValueError("All modalities are missing.")
     embeddings = {}
     Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
-    if transfer:
+    if len(missing_modalities) == 1:
+        assert missing_modalities[0] == modalities[0]
         X_test_r = [model.transform(X_test.cpu().detach().numpy())]
     else:
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(reversed(modalities)):
-        if (transfer and name == "clinical"):
+        if name in missing_modalities:
             continue
         code = np.array(X_test_r[idx])
         if verbose > 0:
@@ -339,7 +346,7 @@ def get_neuroclav(checkpointfile, layers=(444, 256, 20), **kwargs):
     return model
 
 
-def eval_neuroclav(model, data, modalities, n_samples=1, transfer=False,
+def eval_neuroclav(model, data, modalities, view_name="rois", n_samples=1,
                    verbose=1):
     """ Evaluate the NeuroCLAV model.
 
@@ -351,8 +358,8 @@ def eval_neuroclav(model, data, modalities, n_samples=1, transfer=False,
         the input data organized by views.
     modalities: list of str
         names of the model input views.
-    transfer: bool, default Fasle
-        causes the deletion of the clinical data, does nothing here
+    view_name: str, default 'rois'
+        the name of the view containg the data to encode.
     verbose: int, default 1
         control the verbosity level.
 
@@ -362,8 +369,8 @@ def eval_neuroclav(model, data, modalities, n_samples=1, transfer=False,
         the generated latent representations.
     """
     embeddings = {}
-    assert "rois" in modalities
-    view_data = data["rois"]
+    assert view_name in modalities
+    view_data = data[view_name]
     model.eval()
     with torch.no_grad():
         code = model(view_data).cpu().detach().numpy()

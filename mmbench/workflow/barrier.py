@@ -20,7 +20,8 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data, get_train_data, get_full_data
+from mmbench.dataset import (
+    get_test_data, get_train_data, get_test_full_data, get_train_full_data)
 from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models
 from brainboard.metric import eval_interpolation
@@ -28,7 +29,7 @@ from mmbench.plotting import mat_display, barrier_display
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
-                          downstream_name, n_coeffs=10, transfer=False):
+                          downstream_name, dtype="full", n_coeffs=10):
     """ Compare the performance barrier interpolating the weights of any two
     pairs of intances of the same network and monitoring a common downstream
     task.
@@ -53,12 +54,13 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     downstream_name: str
         the name of the column that contains the downstream classification
         task.
+    dtype: str, default 'full'
+        the data type: 'complete' or 'full'.
     n_coeffs: int, default 10
-        number of interpolation points
-    transfer: bool, default False
-        Training dataset is different from test dataset
+        number of interpolation points.
     """
     print_title(f"COMPARE MODEL WEIGHTS: {dataset}")
+    assert dtype in ("complete", "full")
     benchdir = outdir
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
@@ -68,13 +70,14 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
-    data_train, meta_train_df = get_train_data(dataset, datasetdir, modalities)
-    data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
-    if transfer:
-        data = get_full_data(dataset, datasetdir, modalities)
-        data_train, meta_train_df, data_test, meta_test_df = data[0:4]
+    if dtype == "full":
+        train_loader, test_loader = (get_train_full_data, get_test_full_data)
+    else:
+        train_loader, test_loader = (get_train_data, get_test_data)
+    data_train, meta_train_df = train_loader(dataset, datasetdir, modalities)
     assert downstream_name in meta_train_df.columns, (
         f"Specify a downstream task from: {meta_train_df.columns}")
+    data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)
     y_train = meta_train_df[downstream_name]
     y_test = meta_test_df[downstream_name]
     for mod in modalities:
@@ -183,7 +186,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
 
 
 def area(y, x):
-    """calculation of absolute area between curve y and its base line
+    """ Calculation of the area between a curve y and the line (ax + b)
+    joining its two extrem values.
 
     Parameters
     ----------
@@ -197,16 +201,10 @@ def area(y, x):
     area: float
         area of the curve y relative to its base line.
     """
-    ref = y[-1] * x + (1 - x) * y[0]
-    area = abs(np.trapz(y, x) - np.trapz(ref, x))
-
     slope = (y[-1] - y[0]) / (x[-1] - x[0])
     intercept = y[0] - slope * x[0]
     ref = slope * x + intercept
     upref = [max(y1, y2) for y1, y2 in zip(ref, y)]
     downref = [min(y1, y2) for y1, y2 in zip(ref, y)]
-    area2 = np.trapz(upref, x) - np.trapz(downref, x)
-    print("area ", area)
-    print("area2", area2)
-    print("")
-    return area2
+    area = np.trapz(upref, x) - np.trapz(downref, x)
+    return area

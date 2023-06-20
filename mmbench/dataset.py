@@ -54,36 +54,24 @@ def get_test_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
-def get_full_data(dataset, datasetdir, modalities):
+def get_train_full_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
-        Returns
-    -------
-    data_train: dict
-        the loaded data for each modality.
-    metadata_train: DataFrame
-        the associated meta information.
-    data_test: dict
-        the loaded data for each modality.
-    metadata_test: DataFrame
-        the associated meta information.
-    data: dict
-        the loaded data for each modality.
-    metadata: DataFrame
-        the associated meta information.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="full")
+    data, meta_df = get_data(dataset, datasetdir, modalities,
+                             dtype="full_train")
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
-    data_test, meta_test_df = get_data(dataset, datasetdir, modalities,
-                                       dtype="full_test")
-    data_test, meta_test_df = iq_threshold(dataset, data_test, meta_test_df,
-                                           threshold=threshold)
-    data_train, meta_train_df = get_data(dataset, datasetdir, modalities,
-                                         dtype="full_train")
-    data_train, meta_train_df = iq_threshold(dataset, data_train,
-                                             meta_train_df,
-                                             threshold=threshold)
-    return data_train, meta_train_df, data_test, meta_test_df, data, meta_df
+    return data, meta_df
+
+
+def get_test_full_data(dataset, datasetdir, modalities):
+    """ See `get_data` and `iq_threshold` for documentation.
+    """
+    threshold = IQ_MAP.get(dataset)
+    data, meta_df = get_data(dataset, datasetdir, modalities,
+                             dtype="full_test")
+    data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
+    return data, meta_df
 
 
 def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
@@ -202,9 +190,7 @@ def get_data(dataset, datasetdir, modalities, dtype):
     meta = dict((key, val.numpy() if isinstance(val, torch.Tensor) else val)
                 for key, val in meta.items())
     del meta["participant_id"]
-    if "full" not in dtype:
-        meta.update(
-            dict((key, val) for key, val in zip(clinical_names, scores)))
+    meta.update(dict((key, val) for key, val in zip(clinical_names, scores)))
     meta_df = pd.DataFrame.from_dict(meta)
     return data, meta_df
 

@@ -22,13 +22,13 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data, get_full_data
+from mmbench.dataset import get_test_data, get_test_full_data
 from mmbench.model import get_models, eval_models
 from brainboard.metric import linear_cka, layer_at, get_named_layers
 
 
 def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
-                                     transfer=False):
+                                     dtype="full"):
     """ Define the Centered Kernel Alignment (CKA) as a measure of similarity
     between two output features in a layer of a network architecture given
     any two pairs of instances of a network.
@@ -50,10 +50,11 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
         module.
     outdir: str
         the destination folder.
-    transfer: bool, default False
-        Training dataset is different from test dataset
+    dtype: str, default 'full'
+        the data type: 'complete' or 'full'.
     """
     print_title(f"COMPARE MODEL LATENT REPRESENTATIONS: {dataset}")
+    assert dtype in ("complete", "full")
     benchdir = outdir
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
@@ -63,11 +64,11 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
-    data_test, meta_test_df = get_test_data(dataset, datasetdir, modalities)
-    if transfer:
-        _, _, _, _, data_test, meta_test_df = get_full_data(dataset,
-                                                            datasetdir,
-                                                            modalities)
+    if dtype == "full":
+        test_loader = get_test_full_data
+    else:
+        test_loader = get_test_data
+    data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)
     for mod in modalities:
         data_test[mod] = data_test[mod].to(device).float()
     print_text([(key, arr.shape) for key, arr in data_test.items()])

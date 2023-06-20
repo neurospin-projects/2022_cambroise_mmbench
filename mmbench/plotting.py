@@ -17,11 +17,70 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from scipy.stats import ttest_1samp
 from scipy.stats import ttest_ind as ttest
-from mmbench.color_utils import (print_subtitle, print_result)
+from mmbench.color_utils import print_subtitle, print_result
+
+
+def plot_barrier_clusters(data, labels, scores, task_name, metric_name):
+    """ Display the barrier clustering results.
+
+    Parameters
+    ----------
+    data: (N, t)
+        the time courses obtained when interpolating the weights of any two
+        pairs of intances.
+    labels: (N, )
+        the time courses clusters.
+    scores: (K, )
+        the clustering metrics used to determine to best number of clusters.
+    task_name: str
+        the task name used in the barrier expermiement.
+    metric_name: str
+        metric name used to select the best number of clusters.
+    """
+    fontparams = {"font.size": 11, "font.weight": "bold",
+                  "font.family": "serif", "font.style": "italic"}
+    plt.rcParams.update(fontparams)
+    labelparams = {"size": 16, "weight": "semibold", "family": "serif"}
+    unique_labels = np.unique(labels)
+    n_cluster = len(unique_labels)
+    max_clusters = len(scores)
+    alpha = range(data.shape[-1])
+    xk = range(1, max_clusters + 1)
+    cmap = cm.get_cmap("hsv", max_clusters)
+    fig = plt.figure()
+    plt.subplot(1, 2, 1)
+    ax = plt.gca()
+    for label in unique_labels:
+        ts = data[labels == label]
+        mean_ts = np.mean(ts, axis=0)
+        std_ts = np.std(ts, axis=0)
+        ax.plot(alpha, mean_ts, label=f"basin {label + 1}", c=cmap(label))
+        ax.fill_between(alpha, mean_ts - std_ts, mean_ts + std_ts, alpha=0.3,
+                        facecolor=cmap(label))
+    ax.spines[["right", "top"]].set_visible(False)
+    ax.set_xlabel(r"$\alpha$", labelparams)
+    ax.set_ylabel(task_name, labelparams)
+    handles, labels = ax.get_legend_handles_labels()
+    kw = dict(ncol=len(handles), loc="lower center", frameon=False)
+    leg = ax.legend(handles, labels, bbox_to_anchor=[0.5, 1.04], **kw)
+    ax.add_artist(leg)
+    fig.subplots_adjust(top=0.9)
+    plt.subplot(1, 2, 2)
+    ax = plt.gca()
+    ax.plot(xk, scores)
+    plt.vlines(n_cluster, plt.ylim()[0], plt.ylim()[1], linestyles="dashed")
+    plt.text(n_cluster, (plt.ylim()[0] + plt.ylim()[1]) / 2, f"k={n_cluster}",
+             ha="center", va="center", rotation="vertical",
+             backgroundcolor="white")
+    ax.spines[["right", "top"]].set_visible(False)
+    ax.set_xlabel("k", labelparams)
+    ax.set_ylabel(metric_name, labelparams)
+    return fig
 
 
 def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
@@ -48,9 +107,9 @@ def plot_mat(key, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     title: str, default None
         the title displayed on the figure.
     vmin: float, default None
-        minimum value on y-axis of figures
+        minimum value on y-axis of figures.
     vmax: float, default None
-        maximum value on y-axis of figures
+        maximum value on y-axis of figures.
     """
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
@@ -105,8 +164,8 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
         optionally, display pairwise statistics.
     do_one_sample_stars: bool, default True
         optionally, display sampling statistics.
-    yname: str, default "model fit (r)"
-        optionally, name of the metric on y-axis
+    yname: str, default 'model fit (r)'
+        optionally, name of the metric on y-axis.
 
     Returns
     -------
@@ -226,7 +285,8 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 
 def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
                     scale, sname):
-    """ Save barrier curves for a model
+    """ Save barrier curves for a model.
+
     Parameters
     ----------
     coeffs : list
@@ -242,9 +302,9 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
     outdir : str
         the destination folder.
     scale : tuple (min, max)
-        min and max values of matrix in matrices
+        min and max values of matrix in matrices.
     sname : str
-        the name of the scorer
+        the name of the scorer.
     """
     print_subtitle(f"Display {model_name}_{downstream} figures...")
     ncols = 3
@@ -269,11 +329,12 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
 
 
 def mat_display(matrices, dataset, outdir, downstream_name, scale):
-    """ Plot area matrices
+    """ Plot area matrices.
+
     Parameters
     ----------
     matrices : dict
-        Area matrix dictionaries by models.
+        area matrix dictionaries by models.
     dataset: str
         the dataset name: euaims or hbn.
     outdir : str
@@ -282,7 +343,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
         the name of the column that contains the downstream classification
         task.
     scale : tuple (min, max)
-        min and max values of matrix in matrices
+        min and max values of matrix in matrices.
     """
     ncols = 2
     nrows = 3

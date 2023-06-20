@@ -21,13 +21,14 @@ import torch
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
-from mmbench.dataset import get_test_data, get_train_data, get_full_data
+from mmbench.dataset import (
+    get_test_data, get_train_data, get_test_full_data, get_train_full_data)
 from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models, eval_models
 
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
-                         transfer=False):
+                         dtype="full"):
     """ Retrieve the learned latent space of different models using a
     N samplings scheme.
 
@@ -48,14 +49,15 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
         module.
     outdir: str
         the destination folder.
-    transfer: bool, default False
-        Training dataset is different from test dataset
+    dtype: str, default 'full'
+        the data type: 'complete' or 'full'.
 
     Notes
     -----
     We need to extend this procedure to CV models.
     """
     print_title(f"GET MODELS LATENT VARIABLES: {dataset}")
+    assert dtype in ("complete", "full")
     benchdir = outdir
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
@@ -65,23 +67,23 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
-    data, meta_df = get_test_data(dataset, datasetdir, modalities)
-    data_tr, meta_df_tr = get_train_data(dataset, datasetdir, modalities)
-    if transfer is True:
-        data_tr, meta_df_tr, data, meta_df, _, _ = get_full_data(dataset,
-                                                                 datasetdir,
-                                                                 modalities)
+    if dtype == "full":
+        train_loader, test_loader = (get_train_full_data, get_test_full_data)
+    else:
+        train_loader, test_loader = (get_train_data, get_test_data)
+    data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)
+    data_train, meta_train_df = train_loader(dataset, datasetdir, modalities)
     for mod in modalities:
-        data[mod] = data[mod].to(device).float()
-        data_tr[mod] = data_tr[mod].to(device).float()
-    print_text([(key, arr.shape) for key, arr in data.items()])
-    print_text(meta_df)
-    print_text([(key, arr.shape) for key, arr in data_tr.items()])
-    print_text(meta_df_tr)
+        data_test[mod] = data_test[mod].to(device).float()
+        data_train[mod] = data_train[mod].to(device).float()
+    print_text([(key, arr.shape) for key, arr in data_test.items()])
+    print_text(meta_test_df)
+    print_text([(key, arr.shape) for key, arr in data_train.items()])
+    print_text(meta_train_df)
     meta_file = os.path.join(benchdir, f"latent_meta_{dataset}.tsv")
     meta_file_tr = os.path.join(benchdir, f"latent_meta_train_{dataset}.tsv")
-    meta_df.to_csv(meta_file, sep="\t", index=False)
-    meta_df_tr.to_csv(meta_file_tr, sep="\t", index=False)
+    meta_test_df.to_csv(meta_file, sep="\t", index=False)
+    meta_train_df.to_csv(meta_file_tr, sep="\t", index=False)
     print_result(f"metadata: {meta_file}")
 
     print_subtitle("Parsing config...")
@@ -92,8 +94,8 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
     models = {}
     default_params = {
         "n_channels": len(modalities),
-        "n_feats": [data[mod].shape[1] for mod in modalities],
-        "n_feats_tr": [data_tr[mod].shape[1] for mod in modalities],
+        "n_feats": [data_test[mod].shape[1] for mod in modalities],
+        "n_feats_tr": [data_train[mod].shape[1] for mod in modalities],
         "modalities": modalities}
     for name, params in parser.config.models.items():
         _models = get_models(
@@ -117,8 +119,9 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
                 model.eval()
                 _models[idx] = model
         with torch.set_grad_enabled(False):
-            embeddings = eval_models(eval_fct, _models, data, **kwargs_fct)
-            embeddings_tr = eval_models(eval_fct, _models, data_tr,
+            embeddings = eval_models(eval_fct, _models, data_test,
+                                     **kwargs_fct)
+            embeddings_tr = eval_models(eval_fct, _models, data_train,
                                         **kwargs_fct)
             for key, val in embeddings.items():
                 key = _sanitize(key)
