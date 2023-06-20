@@ -87,7 +87,7 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     for idx in range(n_iter):
         Xi_train, _, Yi_train, _ = train_test_split(
             samples, y_train, test_size=0.2, random_state=random_state[idx])
-        models.append(linear_model.LogisticRegression(max_iter=200))
+        models.append(linear_model.LogisticRegression(max_iter=100))
         models[idx].fit(Xi_train,Yi_train)
         print(models[idx]) 
 
