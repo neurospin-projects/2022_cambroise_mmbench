@@ -13,6 +13,7 @@ Define the different models.
 
 # Imports
 import os
+import copy
 import torch
 import numpy as np
 from joblib import load
@@ -67,7 +68,9 @@ def eval_models(eval_func, models, data, modalities, **kwargs):
         the generated latent representations.
     """
     embeddings = None
-    for model in models:
+    n_models = len(models)
+    for idx, model in enumerate(models):
+        print_text(f"-> eval model: {idx +  1}/{n_models}")
         emb = eval_func(model, data, modalities, **kwargs)
         if embeddings is None:
             embeddings = dict((key, [val]) for key, val in emb.items())
@@ -129,6 +132,7 @@ def eval_mopoe(model, data, modalities, n_samples=1, verbose=1):
     if len(complete_modalities) == 0:
         raise ValueError("All modalities are missing.")
     n_data = len(data[complete_modalities[0]])
+    data = copy.deepcopy(data)
     for name in missing_modalities:
         shape = [n_data] + list(model.modalities[name].data_size)
         dtype = data[complete_modalities[0]].dtype
@@ -136,7 +140,9 @@ def eval_mopoe(model, data, modalities, n_samples=1, verbose=1):
         data[name] = torch.from_numpy(np.full(shape, np.nan)).to(device,
                                                                  dtype=dtype)
     embeddings = {}
-    inf_data = model.inference(data)
+    model.eval()
+    with torch.no_grad():
+        inf_data = model.inference(data)
     latents = [inf_data["modalities"][f"{mod}_style"] for mod in modalities]
     latents += [inf_data["joint"]]
     key = "MoPoe"
@@ -223,6 +229,7 @@ def eval_smcvae(model, data, modalities, n_samples=10, threshold=0.2,
     if len(complete_modalities) == 0:
         raise ValueError("All modalities are missing.")
     n_data = len(data[complete_modalities[0]])
+    data = copy.deepcopy(data)
     for name in missing_modalities:
         idx = modalities.index(name)
         shape = [n_data] + listify(model.n_feats[idx])
@@ -305,11 +312,12 @@ def eval_pls(model, data, modalities, n_samples=1, verbose=1):
     if len(complete_modalities) == 0:
         raise ValueError("All modalities are missing.")
     embeddings = {}
-    Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
     if len(missing_modalities) == 1:
         assert missing_modalities[0] == modalities[0]
+        X_test = data[modalities[1]].to(torch.float32)
         X_test_r = [model.transform(X_test.cpu().detach().numpy())]
     else:
+        Y_test, X_test = [data[mod].to(torch.float32) for mod in modalities]
         X_test_r = model.transform(
             X_test.cpu().detach().numpy(), Y_test.cpu().detach().numpy())
     for idx, name in enumerate(reversed(modalities)):
@@ -378,4 +386,69 @@ def eval_neuroclav(model, data, modalities, view_name="rois", n_samples=1,
     if verbose > 0:
         print_text(f"NeuroCLAV_rois latents: {code.shape}")
     embeddings["NeuroCLAV_rois"] = code
+    return embeddings
+
+
+def get_vae(checkpointfile, **kwargs):
+    """ Return the VAE model.
+
+    Parameters
+    ----------
+    checkpointfiles: str
+        path to the model weights.
+    latent_dim: int
+        the number of latent dimensions.
+    input_dim: int
+        the number of features for the image channel.
+    kwargs: dict
+        extra parameters passed to the NeuroCLAV constructor.
+
+    Returns
+    -------
+    model: Module
+        the instanciated model.
+    """
+    from brainite.models import VAE
+    model = VAE(input_channels=1, noise_fixed=True, dropout=0.1, sparse=False,
+                **kwargs)
+    checkpoint = torch.load(checkpointfile, map_location=torch.device("cpu"))
+    model.load_state_dict(checkpoint)
+    return model
+
+
+def eval_vae(model, data, modalities, view_name="rois", n_samples=1,
+             verbose=1):
+    """ Evaluate the VAE model.
+
+    Parameters
+    ----------
+    model: Module
+        the input model.
+    data: dict
+        the input data organized by views.
+    modalities: list of str
+        names of the model input views.
+    view_name: str, default 'rois'
+        the name of the view containg the data to encode.
+    verbose: int, default 1
+        control the verbosity level.
+
+    Returns
+    -------
+    embeddings: dict
+        the generated latent representations.
+    """
+    embeddings = {}
+    assert view_name in modalities
+    view_data = data[view_name]
+    model.eval()
+    with torch.no_grad():
+        code, _ = model(view_data)
+        code = code.loc.cpu().detach().numpy()
+        if code.ndim > 2:
+            code = code.squeeze()
+    code = np.array(code)
+    if verbose > 0:
+        print_text(f"VAE_rois latents: {code.shape}")
+    embeddings["VAE_rois"] = code
     return embeddings

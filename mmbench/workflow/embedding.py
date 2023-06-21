@@ -28,7 +28,7 @@ from mmbench.model import get_models, eval_models
 
 
 def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
-                         dtype="full"):
+                         dtype="full", missing_modalities=None):
     """ Retrieve the learned latent space of different models using a
     N samplings scheme.
 
@@ -51,6 +51,8 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
         the destination folder.
     dtype: str, default 'full'
         the data type: 'complete' or 'full'.
+    missing_modalities: list, default None
+        remove data from missing modalities.
 
     Notes
     -----
@@ -62,6 +64,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
+    missing_modalities = missing_modalities or []
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print_subtitle("Loading data...")
@@ -80,11 +83,14 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
     print_text(meta_test_df)
     print_text([(key, arr.shape) for key, arr in data_train.items()])
     print_text(meta_train_df)
-    meta_file = os.path.join(benchdir, f"latent_meta_{dataset}.tsv")
-    meta_file_tr = os.path.join(benchdir, f"latent_meta_train_{dataset}.tsv")
-    meta_test_df.to_csv(meta_file, sep="\t", index=False)
-    meta_train_df.to_csv(meta_file_tr, sep="\t", index=False)
-    print_result(f"metadata: {meta_file}")
+    meta_test_file = os.path.join(
+        benchdir, f"latent_meta_test_{dataset}.tsv")
+    meta_train_file = os.path.join(
+        benchdir, f"latent_meta_train_{dataset}.tsv")
+    meta_test_df.to_csv(meta_test_file, sep="\t", index=False)
+    meta_train_df.to_csv(meta_train_file, sep="\t", index=False)
+    print_result(f"train metadata: {meta_train_file}")
+    print_result(f"test metadata: {meta_test_file}")
 
     print_subtitle("Parsing config...")
     parser = ConfigParser("latent-config", configfile)
@@ -97,6 +103,9 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
         "n_feats": [data_test[mod].shape[1] for mod in modalities],
         "n_feats_tr": [data_train[mod].shape[1] for mod in modalities],
         "modalities": modalities}
+    for mod in missing_modalities:
+        data_test[mod] = None
+        data_train[mod] = None
     for name, params in parser.config.models.items():
         _models = get_models(
             params["get"],
@@ -109,8 +118,8 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
         print(_models[0])
 
     print_subtitle("Evaluate models...")
-    results = {}
-    results_tr = {}
+    test_results = {}
+    train_results = {}
     for name, (_models, eval_fct, kwargs_fct) in models.items():
         print_text(f"model: {name}")
         for idx, model in enumerate(_models):
@@ -119,23 +128,26 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
                 model.eval()
                 _models[idx] = model
         with torch.set_grad_enabled(False):
-            embeddings = eval_models(eval_fct, _models, data_test,
-                                     **kwargs_fct)
-            embeddings_tr = eval_models(eval_fct, _models, data_train,
-                                        **kwargs_fct)
-            for key, val in embeddings.items():
+            print_text("split: test")
+            test_embeddings = eval_models(eval_fct, _models, data_test,
+                                          **kwargs_fct)
+            print_text("split: train")
+            train_embeddings = eval_models(eval_fct, _models, data_train,
+                                           **kwargs_fct)
+            for key, val in test_embeddings.items():
                 key = _sanitize(key)
-                results[f"{key}_{dataset}"] = val
-            for key, val in embeddings_tr.items():
+                test_results[f"{key}_{dataset}"] = val
+            for key, val in train_embeddings.items():
                 key = _sanitize(key)
-                results_tr[f"{key}_{dataset}"] = val
-    features_file = os.path.join(benchdir, f"latent_vecs_{dataset}.npz")
-    features_file_tr = os.path.join(benchdir,
-                                    f"latent_vecs_train_{dataset}.npz")
-    np.savez_compressed(features_file, **results)
-    np.savez_compressed(features_file_tr, **results_tr)
-    print_result(f"features: {features_file}")
-    print_result(f"train features: {features_file_tr}")
+                train_results[f"{key}_{dataset}"] = val
+    features_test_file = os.path.join(benchdir,
+                                      f"latent_vecs_test_{dataset}.npz")
+    features_train_file = os.path.join(benchdir,
+                                       f"latent_vecs_train_{dataset}.npz")
+    np.savez_compressed(features_test_file, **test_results)
+    np.savez_compressed(features_train_file, **train_results)
+    print_result(f"train features: {features_train_file}")
+    print_result(f"test features: {features_test_file}")
 
 
 def _sanitize(key):

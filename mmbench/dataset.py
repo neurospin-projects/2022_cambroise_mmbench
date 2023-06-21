@@ -15,6 +15,7 @@ Define the different datasets.
 import os
 import numpy as np
 import pandas as pd
+from types import SimpleNamespace
 from sklearn.preprocessing import StandardScaler
 from torchvision import transforms
 import torch
@@ -40,7 +41,16 @@ def get_train_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="train")
+    if dataset == "hbn":
+        data, meta_df = get_data_legacy(dataset, datasetdir, modalities,
+                                        dtype="train")
+    else:
+        _, meta_df, data, train_indices, test_indices = get_data(
+            dataset, datasetdir, modalities, dtype="complete")
+        meta_df = pd.DataFrame(data=meta_df.values[train_indices],
+                               columns=meta_df.columns,
+                               index=meta_df.index[train_indices])
+        data = dict((key, item.X_train) for key, item in data.items())
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
@@ -49,7 +59,16 @@ def get_test_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities, dtype="test")
+    if dataset == "hbn":
+        data, meta_df = get_data_legacy(dataset, datasetdir, modalities,
+                                        dtype="test")
+    else:
+        _, meta_df, data, train_indices, test_indices = get_data(
+            dataset, datasetdir, modalities, dtype="complete")
+        meta_df = pd.DataFrame(data=meta_df.values[test_indices],
+                               columns=meta_df.columns,
+                               index=meta_df.index[test_indices])
+        data = dict((key, item.X_test) for key, item in data.items())
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
@@ -58,8 +77,16 @@ def get_train_full_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities,
-                             dtype="full_train")
+    if dataset == "hbn":
+        data, meta_df = get_data_legacy(dataset, datasetdir, modalities,
+                                        dtype="full_train")
+    else:
+        _, meta_df, data, train_indices, test_indices = get_data(
+            dataset, datasetdir, modalities, dtype="full")
+        meta_df = pd.DataFrame(data=meta_df.values[train_indices],
+                               columns=meta_df.columns,
+                               index=meta_df.index[train_indices])
+        data = dict((key, item.X_train) for key, item in data.items())
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
@@ -68,8 +95,16 @@ def get_test_full_data(dataset, datasetdir, modalities):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
-    data, meta_df = get_data(dataset, datasetdir, modalities,
-                             dtype="full_test")
+    if dataset == "hbn":
+        data, meta_df = get_data_legacy(dataset, datasetdir, modalities,
+                                        dtype="full_test")
+    else:
+        _, meta_df, data, train_indices, test_indices = get_data(
+            dataset, datasetdir, modalities, dtype="full")
+        meta_df = pd.DataFrame(data=meta_df.values[test_indices],
+                               columns=meta_df.columns,
+                               index=meta_df.index[test_indices])
+        data = dict((key, item.X_test) for key, item in data.items())
     data, meta_df = iq_threshold(dataset, data, meta_df, threshold=threshold)
     return data, meta_df
 
@@ -107,7 +142,7 @@ def iq_threshold(dataset, data, meta_df, threshold=80, col_name="fsiq"):
     return data, meta_df
 
 
-def get_data(dataset, datasetdir, modalities, dtype):
+def get_data_legacy(dataset, datasetdir, modalities, dtype):
     """ Load the train/test data.
 
     Parameters
@@ -125,12 +160,14 @@ def get_data(dataset, datasetdir, modalities, dtype):
     -------
     data: dict
         the loaded data for each modality.
-    metadata: DataFrame
+    meta_df: DataFrame
         the associated meta information.
     """
     trainset, testset = get_dataset(dataset, datasetdir, modalities)
     if dtype == "train":
         dataset = trainset
+    elif dtype == "test":
+        dataset = testset
     elif dtype == "full":
         datasets = [trainset, testset]
     elif dtype == "full_test":
@@ -138,8 +175,8 @@ def get_data(dataset, datasetdir, modalities, dtype):
     elif dtype == "full_train":
         datasets = [trainset]
     else:
-        dataset = testset
-    if "full" in dtype:
+        raise ValueError("Unexpected data type.")
+    if dtype.startswith("full"):
         all_data = {"rois": [], "clinical": []}
         all_meta = None
         for dataset in datasets:
@@ -172,8 +209,9 @@ def get_data(dataset, datasetdir, modalities, dtype):
                 all_data["clinical"][idx] = block
         all_data["rois"] = torch.cat(all_data["rois"], dim=0)
         all_data["clinical"] = torch.cat(all_data["clinical"], dim=0)
+        print(all_data["rois"].shape, all_data["clinical"].shape)
         for key in all_meta:
-            all_meta[key] = torch.cat(all_meta[key], dim=0)
+            all_meta[key] = np.concatenate(all_meta[key], axis=0)
         data, meta = (all_data, all_meta)
     else:
         sampler = MissingModalitySampler(dataset, batch_size=len(dataset))
@@ -192,6 +230,111 @@ def get_data(dataset, datasetdir, modalities, dtype):
     del meta["participant_id"]
     meta.update(dict((key, val) for key, val in zip(clinical_names, scores)))
     meta_df = pd.DataFrame.from_dict(meta)
+    return data, meta_df
+
+
+def get_data(dataset, datasetdir, modalities, dtype="complete",
+             test_size=0.25, random_state=42):
+    """ Load the train/test data.
+
+    Parameters
+    ----------
+    dataset: str
+        the dataset name: euaims or hbn.
+    datasetdir: str
+        the path to the dataset associated data.
+    modalities: list of str
+        the modalities to load.
+    dtype: str, default 'complete'
+        the data type: 'complete', 'full'.
+    test_size: float, default=0.25
+        should be between 0.0 and 1.0 and represent the proportion of the
+        dataset to include in the test split.
+    random_state: int, default 42
+        controls the shuffling applied to the data before applying the split.
+
+    Returns
+    -------
+    data: dict of DataFrame
+        the loaded data for each modality.
+    meta_df: DataFrame
+        the associated meta information.
+    tensors: dict of Tensors
+        the splitted input data (train, test).
+    train_indices: list of int
+        the train indices.
+    test_indices: list of int
+        the test indices.
+    """
+    from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
+
+    data, meta_df = load_data(datasetdir, modalities)
+    data["rois"].dropna(inplace=True)
+    if dtype == "full":
+        subjects = data["rois"].index
+    elif dtype == "complete":
+        data["clinical"].dropna(inplace=True)
+        subjects = set(data["rois"].index).intersection(
+            set(data["clinical"].index))
+    else:
+        raise ValueError("Unexpected data type.")
+    meta_df = meta_df[meta_df.index.isin(subjects)]
+    for key, df in data.items():
+        data[key] = df[df.index.isin(subjects)]
+
+    msss = MultilabelStratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=random_state)
+    train_indices, test_indices = next(
+        msss.split(list(subjects), meta_df.values))
+
+    tensors = {}
+    for key, df in data.items():
+        X_train = df.values[train_indices]
+        X_test = df.values[test_indices]
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+        cset = SimpleNamespace(X_train=torch.from_numpy(X_train),
+                               X_test=torch.from_numpy(X_test))
+        tensors[key] = cset
+
+    return data, meta_df, tensors, train_indices, test_indices
+
+
+def load_data(datasetdir, modalities):
+    """ Load the data.
+
+    Parameters
+    ----------
+    datasetdir: str
+        the path to the dataset associated data.
+    modalities: list of str
+        the modalities to load.
+
+    Returns
+    -------
+    data: dict of DataFrame
+        the loaded data.
+    meta_df: DataFrame
+        the associated meta information.
+    """
+    meta_df = pd.read_csv(os.path.join(datasetdir, "metadata.tsv"), sep="\t")
+    meta_df.set_index("participant_id", inplace=True)
+    data = {}
+    all_subjects = []
+    for mod in modalities:
+        _data = np.load(os.path.join(datasetdir, f"{mod}_data.npy"))
+        subjects = np.load(os.path.join(datasetdir, f"{mod}_subjects.npy"))
+        all_subjects.extend(subjects.tolist())
+        names = np.load(os.path.join(datasetdir, f"{mod}_names.npy"),
+                        allow_pickle=True)
+        data[mod] = pd.DataFrame(data=_data, columns=names, index=subjects)
+    all_subjects = set(all_subjects)
+    for key, df in data.items():
+        missing_subjects = all_subjects - set(df.index)
+        new_df = pd.DataFrame(np.nan, index=list(missing_subjects),
+                              columns=df.columns)
+        data[key] = pd.concat([df, new_df])
     return data, meta_df
 
 
