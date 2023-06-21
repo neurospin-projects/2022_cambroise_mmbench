@@ -30,5 +30,6 @@ fire.Fire({
     "rsa": wf1.benchmark_rsa_exp,
     "pred": wf1.benchmark_pred_exp,
     "feature-similarity": wf1.benchmark_feature_similarity_exp,
-    "barrier-performance": wf1.benchmark_barrier_exp
+    "barrier-performance": wf1.benchmark_barrier_exp,
+    "baseline": wf1.benchmark_baseline
 })
