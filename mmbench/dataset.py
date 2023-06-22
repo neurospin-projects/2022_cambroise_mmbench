@@ -28,16 +28,17 @@ except:
 from mopoe.multimodal_cohort.dataset import MultimodalDataset, DataManager
 from mopoe.multimodal_cohort.dataset import MissingModalitySampler
 from mmbench.color_utils import print_text
+from mmbench.residualize import residualize as residualizer
 
 
 # Global parameters
 IQ_MAP = {
-    "euaims": 80.,
+    "euaims": 75.,
     "hbn": None
 }
 
 
-def get_train_data(dataset, datasetdir, modalities):
+def get_train_data(dataset, datasetdir, modalities, residualize=False):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
@@ -46,7 +47,8 @@ def get_train_data(dataset, datasetdir, modalities):
                                         dtype="train")
     else:
         _, meta_df, data, train_indices, test_indices = get_data(
-            dataset, datasetdir, modalities, dtype="complete")
+            dataset, datasetdir, modalities, dtype="complete",
+            residualize=residualize)
         meta_df = pd.DataFrame(data=meta_df.values[train_indices],
                                columns=meta_df.columns,
                                index=meta_df.index[train_indices])
@@ -55,7 +57,7 @@ def get_train_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
-def get_test_data(dataset, datasetdir, modalities):
+def get_test_data(dataset, datasetdir, modalities, residualize=False):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
@@ -64,7 +66,8 @@ def get_test_data(dataset, datasetdir, modalities):
                                         dtype="test")
     else:
         _, meta_df, data, train_indices, test_indices = get_data(
-            dataset, datasetdir, modalities, dtype="complete")
+            dataset, datasetdir, modalities, dtype="complete",
+            residualize=residualize)
         meta_df = pd.DataFrame(data=meta_df.values[test_indices],
                                columns=meta_df.columns,
                                index=meta_df.index[test_indices])
@@ -73,7 +76,7 @@ def get_test_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
-def get_train_full_data(dataset, datasetdir, modalities):
+def get_train_full_data(dataset, datasetdir, modalities, residualize=False):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
@@ -82,7 +85,8 @@ def get_train_full_data(dataset, datasetdir, modalities):
                                         dtype="full_train")
     else:
         _, meta_df, data, train_indices, test_indices = get_data(
-            dataset, datasetdir, modalities, dtype="full")
+            dataset, datasetdir, modalities, dtype="full",
+            residualize=residualize)
         meta_df = pd.DataFrame(data=meta_df.values[train_indices],
                                columns=meta_df.columns,
                                index=meta_df.index[train_indices])
@@ -91,7 +95,7 @@ def get_train_full_data(dataset, datasetdir, modalities):
     return data, meta_df
 
 
-def get_test_full_data(dataset, datasetdir, modalities):
+def get_test_full_data(dataset, datasetdir, modalities, residualize=False):
     """ See `get_data` and `iq_threshold` for documentation.
     """
     threshold = IQ_MAP.get(dataset)
@@ -100,7 +104,8 @@ def get_test_full_data(dataset, datasetdir, modalities):
                                         dtype="full_test")
     else:
         _, meta_df, data, train_indices, test_indices = get_data(
-            dataset, datasetdir, modalities, dtype="full")
+            dataset, datasetdir, modalities, dtype="full",
+            residualize=residualize)
         meta_df = pd.DataFrame(data=meta_df.values[test_indices],
                                columns=meta_df.columns,
                                index=meta_df.index[test_indices])
@@ -234,7 +239,7 @@ def get_data_legacy(dataset, datasetdir, modalities, dtype):
 
 
 def get_data(dataset, datasetdir, modalities, dtype="complete",
-             test_size=0.25, random_state=42):
+             test_size=0.25, residualize=False, random_state=42):
     """ Load the train/test data.
 
     Parameters
@@ -250,6 +255,8 @@ def get_data(dataset, datasetdir, modalities, dtype="complete",
     test_size: float, default=0.25
         should be between 0.0 and 1.0 and represent the proportion of the
         dataset to include in the test split.
+    residualize: bool, default False
+        optionaly residualize the image data.
     random_state: int, default 42
         controls the shuffling applied to the data before applying the split.
 
@@ -286,11 +293,23 @@ def get_data(dataset, datasetdir, modalities, dtype="complete",
         n_splits=1, test_size=test_size, random_state=random_state)
     train_indices, test_indices = next(
         msss.split(list(subjects), meta_df.values))
+    meta_train_df = pd.DataFrame(data=meta_df.values[train_indices],
+                                 columns=meta_df.columns,
+                                 index=meta_df.index[train_indices])
+    meta_test_df = pd.DataFrame(data=meta_df.values[test_indices],
+                                columns=meta_df.columns,
+                                index=meta_df.index[test_indices])
 
     tensors = {}
     for key, df in data.items():
         X_train = df.values[train_indices]
         X_test = df.values[test_indices]
+        if residualize and key == "rois":
+            X_train, X_test = residualizer(
+                meta_train_df, X_train, meta_test_df, X_test,
+                formula_res="age + sex",
+                formula_full="age + sex + asd", site_name="site",
+                discrete_vars=["sex"], continuous_vars=["age"])
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)

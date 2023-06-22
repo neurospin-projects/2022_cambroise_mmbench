@@ -54,11 +54,11 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     data_train, meta_train_df = get_train_full_data(
-        dataset, datasetdir, modalities)
+        dataset, datasetdir, modalities, residualize=True)
     data_test, meta_test_df = get_test_full_data(
-        dataset, datasetdir, modalities)
-    meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: abs(x - 2))
-    meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: abs(x - 1))
+        dataset, datasetdir, modalities, residualize=True)
+    meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
+    meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
     print_text([(key, arr.shape) for key, arr in data_test.items()])
     print_text(meta_test_df)
     print_text([(key, arr.shape) for key, arr in data_train.items()])
@@ -78,8 +78,10 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     y_train, y_test = (meta_train_df.asd.values, meta_test_df.asd.values)
     y_train = y_train.astype(int)
     y_test = y_test.astype(int)
+    X_train = X_train
+    X_test = X_test
     # ToDo: test random
-    y_train = shuffle(y_train)
+    # y_train = shuffle(y_train)
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
     if random_state is None:
@@ -91,15 +93,16 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     for idx in range(n_iter):
         print_text(f"-> train model: {idx +  1}/{n_iter}")
         # ToDo: use iterative stratifier
-        Xi_train, _, yi_train, _ = train_test_split(
+        Xi_train, Xi_val, yi_train, yi_val = train_test_split(
             X_train, y_train, test_size=0.2, random_state=random_states[idx],
             stratify=y_train)
         print(f"distribution: {Counter(yi_train)}")
-        model = LogisticRegression(max_iter=150, random_state=0)
+        model = LogisticRegression(max_iter=150)
         model.fit(Xi_train, yi_train)
         cv_data.append((Xi_train, yi_train))
         models.append(model)
-        print(f"score: {model.score(Xi_train, yi_train)}")
+        print(f"train score: {model.score(Xi_train, yi_train)}")
+        print(f"val score: {model.score(Xi_val, yi_val)}")
 
     print_subtitle("Evaluate trained models...")
     train_metrics, test_metrics = [], []
@@ -109,6 +112,8 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
         Xi_train, yi_train = cv_data[idx]
         test_metrics.append(scorer(model, X_test, y_test))
         train_metrics.append(scorer(model, Xi_train, yi_train))
+    print(f"train score: {np.mean(train_metrics)} +/- {np.std(train_metrics)}")
+    print(f"test score: {np.mean(test_metrics)} +/- {np.std(test_metrics)}")
     metric_df = pd.DataFrame.from_dict({"model": range(1, n_iter + 1),
                                         f"train_{name}": train_metrics,
                                         f"test_{name}": test_metrics})
