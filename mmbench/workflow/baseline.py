@@ -18,10 +18,8 @@ import numpy as np
 import pandas as pd
 from collections import Counter
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from sklearn.utils import shuffle
+from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_train_full_data, get_test_full_data
@@ -54,9 +52,9 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
     data_train, meta_train_df = get_train_full_data(
-        dataset, datasetdir, modalities, residualize=True)
+        dataset, datasetdir, modalities, residualize=False)
     data_test, meta_test_df = get_test_full_data(
-        dataset, datasetdir, modalities, residualize=True)
+        dataset, datasetdir, modalities, residualize=False)
     meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
     meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
     print_text([(key, arr.shape) for key, arr in data_test.items()])
@@ -80,63 +78,20 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     y_test = y_test.astype(int)
     X_train = X_train
     X_test = X_test
-    # ToDo: test random
-    # y_train = shuffle(y_train)
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
-    if random_state is None:
-        random_states = [None] * n_iter
-    else:
-        random_states = [random_state + idx for idx in range(n_iter)]
-    models = []
-    cv_data = []
-    for idx in range(n_iter):
-        print_text(f"-> train model: {idx +  1}/{n_iter}")
-        # ToDo: use iterative stratifier
-        Xi_train, Xi_val, yi_train, yi_val = train_test_split(
-            X_train, y_train, test_size=0.2, random_state=random_states[idx],
-            stratify=y_train)
-        print(f"distribution: {Counter(yi_train)}")
-        model = LogisticRegression(max_iter=150)
-        model.fit(Xi_train, yi_train)
-        cv_data.append((Xi_train, yi_train))
-        models.append(model)
-        print(f"train score: {model.score(Xi_train, yi_train)}")
-        print(f"val score: {model.score(Xi_val, yi_val)}")
-
-    print_subtitle("Evaluate trained models...")
-    train_metrics, test_metrics = [], []
-    _, scorer, name = get_predictor(y_train)
-    print_text(f"metric: {name}")
-    for idx, model in tqdm(enumerate(models)):
-        Xi_train, yi_train = cv_data[idx]
-        test_metrics.append(scorer(model, X_test, y_test))
-        train_metrics.append(scorer(model, Xi_train, yi_train))
-    print(f"train score: {np.mean(train_metrics)} +/- {np.std(train_metrics)}")
-    print(f"test score: {np.mean(test_metrics)} +/- {np.std(test_metrics)}")
-    metric_df = pd.DataFrame.from_dict({"model": range(1, n_iter + 1),
-                                        f"train_{name}": train_metrics,
-                                        f"test_{name}": test_metrics})
-    filename = os.path.join(
-        benchdir, f"supervised-baseline_{name}_{dataset}.tsv")
-    metric_df.to_csv(filename, sep="\t", index=False)
-    print_result(f"supervised baseline: {filename}")
-
-    print_subtitle("Display statistics...")
-    predict_results = {
-        "ASD": {"LogisticReg_ROI_train_euaims": np.asarray(train_metrics),
-                "LogisticReg_ROI_test_euaims": np.asarray(test_metrics)}}
-    plt.figure()
-    ax = plt.subplot(1, 1, 1)
-    plot_bar(
-        "ASD", predict_results, ax=ax, figsize=None, dpi=300, fontsize=7,
-        fontsize_star=12, fontweight="bold", line_width=2.5,
-        marker_size=3, title=None, do_one_sample_stars=False, palette="Set2",
-        yname=name)
-    plt.subplots_adjust(
-        left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
-    plt.suptitle(f"{dataset.upper()} SUPERVISED BASELINE", fontsize=18, y=1.)
-    filename = os.path.join(
-        benchdir, f"supervised-baseline_{name}_{dataset}.png")
-    plt.savefig(filename)
-    print_result(f"supervised baseline: {filename}")
+    logreg = LogisticRegression()
+    parameters = {
+        "penalty": ["l2"],
+        "C": np.logspace(-5, 3, 9),
+        "max_iter": [100, 150],
+        "solver": ["lbfgs"]}
+    clf = GridSearchCV(logreg, parameters, cv=5, scoring="accuracy",
+                       return_train_score=True, n_jobs=-1)
+    clf.fit(X_train, y_train)
+    results_df = pd.DataFrame.from_dict(clf.cv_results_)
+    results_df = results_df.reindex(sorted(results_df.columns), axis=1)
+    print(results_df)
+    print("Tuned Hyperparameters:", clf.best_params_)
+    print("Accuracy :", clf.best_score_)
+    logreg = clf.best_estimator_
