@@ -25,7 +25,7 @@ from mmbench.color_utils import (
 from mmbench.plotting import plot_bar
 
 
-def benchmark_pred_exp(dataset, datasetdir, outdir):
+def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
     """ Compare the learned latent space of different models using
     prediction analysis.
 
@@ -35,6 +35,8 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
         the dataset name: euaims or hbn.
     datasetdir: str
         the path to the dataset associated data.
+    datadir: str
+        the path containing the embedding data.
     outdir: str
         the destination folder.
 
@@ -53,21 +55,22 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
     """
     print_title("COMPARE MODELS USING REGRESSIONS "
                 f"OR CLASSIFICATION WITH ML ANALYSIS: {dataset}")
-    benchdir = outdir
-    print_text(f"Benchmark directory: {benchdir}")
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    print_text(f"Benchmark directory: {outdir}")
 
     print_subtitle("Loading data...")
     latent_data_test = np.load(
-        os.path.join(benchdir, f"latent_vecs_{dataset}.npz"))
+        os.path.join(datadir, f"latent_vecs_test_{dataset}.npz"))
     latent_data_train = np.load(
-        os.path.join(benchdir, f"latent_vecs_train_{dataset}.npz"))
+        os.path.join(datadir, f"latent_vecs_train_{dataset}.npz"))
     assert (sorted(latent_data_test.keys()) ==
             sorted(latent_data_train.keys())), (
                 "latent data must have the same keys")
     meta_df = pd.read_csv(
-        os.path.join(benchdir, f"latent_meta_{dataset}.tsv"), sep="\t")
+        os.path.join(datadir, f"latent_meta_test_{dataset}.tsv"), sep="\t")
     meta_df_tr = pd.read_csv(
-        os.path.join(benchdir, f"latent_meta_train_{dataset}.tsv"), sep="\t")
+        os.path.join(datadir, f"latent_meta_train_{dataset}.tsv"), sep="\t")
     assert (sorted(meta_df.columns) == sorted(meta_df_tr.columns)), (
         "metadata must have the same columns.")
     clinical_scores = meta_df_tr.columns
@@ -108,10 +111,10 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
     predict_df = pd.concat([predict_df[col].explode() for col in predict_df],
                            axis="columns")
-    predict_df.to_csv(os.path.join(benchdir, "predict.tsv"), sep="\t",
+    predict_df.to_csv(os.path.join(outdir, "predict.tsv"), sep="\t",
                       index=False)
     _df = pd.concat(res_cv_list)
-    _df.to_csv(os.path.join(benchdir, "predict_cv.tsv"), sep="\t",
+    _df.to_csv(os.path.join(outdir, "predict_cv.tsv"), sep="\t",
                index=False)
 
     print_subtitle("Display statistics...")
@@ -131,12 +134,12 @@ def benchmark_pred_exp(dataset, datasetdir, outdir):
     if len(pairwise_stats) > 0:
         pairwise_stat_df = pd.concat(pairwise_stats)
         pairwise_stat_df.to_csv(
-            os.path.join(benchdir, "predict_pairwise_stats.tsv"), sep="\t",
+            os.path.join(outdir, "predict_pairwise_stats.tsv"), sep="\t",
             index=False)
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset.upper()} PREDICT RESULTS", fontsize=20, y=.95)
-    filename = os.path.join(benchdir, f"predict_{dataset}.png")
+    filename = os.path.join(outdir, f"predict_{dataset}.png")
     plt.savefig(filename)
     print_result(f"PREDICT: {filename}")
 
