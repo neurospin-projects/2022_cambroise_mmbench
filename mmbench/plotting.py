@@ -13,6 +13,7 @@ Plotting utility functions.
 
 # Imports
 import os
+import math
 from itertools import combinations
 import numpy as np
 import pandas as pd
@@ -320,7 +321,7 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
 
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
-    plt.suptitle(f"{model_name} {downstream} BARRIER FIGURES", fontsize=20,
+    plt.suptitle(f"{model_name} {downstream} {dataset} BARRIER FIGURES", fontsize=20,
                  y=.95)
     filename = os.path.join(outdir,
                             f"barrier_{model_name}_{downstream}_{dataset}.png")
@@ -349,18 +350,19 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
     nrows = 3
     plt.figure(figsize=np.array((ncols, nrows)) * 4)
     for idx, key in enumerate(matrices):
+        size = math.sqrt(matrices[key].size)
         ax = plt.subplot(nrows, ncols, idx + 1)
         plot_mat(
             key, matrices[key], ax=ax, figsize=None, dpi=300, fontsize=7,
             fontweight="bold", title=f"{key}", vmin=scale[0], vmax=scale[1])
-        ax.set_xticks(np.arange(0, 10, 2))
-        ax.set_yticks(np.arange(0, 10, 2))
-        ax.set_xticklabels(np.arange(1, 11, 2))
-        ax.set_yticklabels(np.arange(1, 11, 2))
+        ax.set_xticks(np.arange(0, size, 2))
+        ax.set_yticks(np.arange(0, size, 2))
+        ax.set_xticklabels(np.arange(1, size + 1, 2))
+        ax.set_yticklabels(np.arange(1, size + 1, 2))
         plt.colorbar(ax.images[0], ax=ax)
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
-    plt.suptitle(f"{dataset} BARRIER AREA", fontsize=20, y=.95)
+    plt.suptitle(f"{downstream_name} {dataset} BARRIER AREA", fontsize=20, y=.95)
     filename = os.path.join(outdir,
                             f"barrier_area_{downstream_name}_{dataset}.png")
     plt.savefig(filename)

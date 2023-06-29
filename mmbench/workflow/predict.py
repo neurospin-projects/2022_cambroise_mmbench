@@ -25,7 +25,7 @@ from mmbench.color_utils import (
 from mmbench.plotting import plot_bar
 
 
-def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
+def benchmark_pred_exp(dataset, datadir, outdir):
     """ Compare the learned latent space of different models using
     prediction analysis.
 
@@ -33,8 +33,6 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
     ----------
     dataset: str
         the dataset name: euaims or hbn.
-    datasetdir: str
-        the path to the dataset associated data.
     datadir: str
         the path containing the embedding data.
     outdir: str

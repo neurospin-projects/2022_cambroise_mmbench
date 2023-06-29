@@ -66,6 +66,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
     print_text(f"modalities: {modalities}")
     if dtype == "full":
         test_loader = get_test_full_data
+        missing_modalities = [modalities[0]]
     else:
         test_loader = get_test_data
     data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)
@@ -84,6 +85,8 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
         "n_channels": len(modalities),
         "n_feats": [data_test[mod].shape[1] for mod in modalities],
         "modalities": modalities}
+    for mod in missing_modalities:
+        data_test[mod] = None
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if (not isinstance(checkpoints, (list, tuple))

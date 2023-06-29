@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from mmbench.plotting import plot_mat, plot_bar
 
 
-def benchmark_rsa_exp(dataset, datasetdir, outdir):
+def benchmark_rsa_exp(dataset, datadir, outdir):
     """ Compare the learned latent space of different models using
     Representational Similarity Analysis (RSA).
 
@@ -32,8 +32,8 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     ----------
     dataset: str
         the dataset name: euaims or hbn.
-    datasetdir: str
-        the path to the dataset associated data.
+    datadir: str
+        the path containing the embedding data.
     outdir: str
         the destination folder.
 
@@ -46,11 +46,12 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
       different latent dimensions.
     """
     print_title(f"COMPARE MODELS USING RSA ANALYSIS: {dataset}")
-    benchdir = outdir
-    print_text(f"Benchmark directory: {benchdir}")
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    print_text(f"Benchmark directory: {outdir}")
 
     print_subtitle("Loading data...")
-    latent_data = np.load(os.path.join(benchdir, f"latent_vecs_{dataset}.npz"))
+    latent_data = np.load(os.path.join(datadir, f"latent_vecs_test_{dataset}.npz"))
     smats, shape = {}, None
     for key in latent_data.keys():
         samples = latent_data[key]
@@ -67,7 +68,7 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
         n_subjects = smats[key].shape[1]
         print_text(f"{key} similarities: {smats[key].shape}")
     meta_df = pd.read_csv(
-        os.path.join(benchdir, f"latent_meta_{dataset}.tsv"), sep="\t")
+        os.path.join(datadir, f"latent_meta_test_{dataset}.tsv"), sep="\t")
     clinical_scores = ["asd", "age", "sex", "site", "fsiq"]
     scale_scores = ["ordinal", "ratio", "ordinal", "ratio", "ratio"]
     scores = dict((qname, scale)
@@ -106,7 +107,7 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     rsa_df = pd.DataFrame.from_dict(rsa_records)
     print(rsa_df.groupby("score").describe().loc[
         :, (slice(None), ["count", "mean", "std"])])
-    rsa_df.to_csv(os.path.join(benchdir, "rsa.tsv"), sep="\t", index=False)
+    rsa_df.to_csv(os.path.join(outdir, "rsa.tsv"), sep="\t", index=False)
 
     print_subtitle("Display subject's (dis)similarity matrices...")
     ncols = n_samples
@@ -123,7 +124,7 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset.upper()} SUBJECTS (S) MAT", fontsize=20, y=.95)
-    filename = os.path.join(benchdir, f"sub_mat_{dataset}.png")
+    filename = os.path.join(outdir, f"sub_mat_{dataset}.png")
     plt.savefig(filename)
     print_result(f"subjects mat: {filename}")
 
@@ -139,7 +140,7 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset.upper()} CLINICAL (C) MAT", fontsize=20, y=.95)
-    filename = os.path.join(benchdir, f"clinical_mat_{dataset}.png")
+    filename = os.path.join(outdir, f"clinical_mat_{dataset}.png")
     plt.savefig(filename)
     print_result(f"clinical mat: {filename}")
 
@@ -161,11 +162,11 @@ def benchmark_rsa_exp(dataset, datasetdir, outdir):
     if len(pairwise_stats) > 0:
         pairwise_stat_df = pd.concat(pairwise_stats)
         pairwise_stat_df.to_csv(
-            os.path.join(benchdir, "rsa_pairwise_stats.tsv"), sep="\t",
+            os.path.join(outdir, "rsa_pairwise_stats.tsv"), sep="\t",
             index=False)
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
     plt.suptitle(f"{dataset.upper()} RSA RESULTS", fontsize=20, y=.95)
-    filename = os.path.join(benchdir, f"rsa_{dataset}.png")
+    filename = os.path.join(outdir, f"rsa_{dataset}.png")
     plt.savefig(filename)
     print_result(f"RSA: {filename}")
