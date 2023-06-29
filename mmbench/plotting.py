@@ -321,8 +321,8 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
 
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=1, hspace=.5)
-    plt.suptitle(f"{model_name} {downstream} {dataset} BARRIER FIGURES", fontsize=20,
-                 y=.95)
+    plt.suptitle(f"{model_name} {downstream} {dataset} BARRIER FIGURES",
+                 fontsize=20, y=.95)
     filename = os.path.join(outdir,
                             f"barrier_{model_name}_{downstream}_{dataset}.png")
     plt.savefig(filename)
@@ -362,7 +362,8 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
         plt.colorbar(ax.images[0], ax=ax)
     plt.subplots_adjust(
         left=None, bottom=None, right=None, top=None, wspace=.5, hspace=.5)
-    plt.suptitle(f"{downstream_name} {dataset} BARRIER AREA", fontsize=20, y=.95)
+    plt.suptitle(f"{downstream_name} {dataset} BARRIER AREA", fontsize=20,
+                 y=.95)
     filename = os.path.join(outdir,
                             f"barrier_area_{downstream_name}_{dataset}.png")
     plt.savefig(filename)
