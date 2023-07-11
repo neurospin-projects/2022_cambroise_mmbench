@@ -26,3 +26,4 @@ jobs:
     - name: Check Python syntax
       run: |
         flake8 --ignore E722,W503,W504,F401,W605 mmbench
+        flake8 --ignore E722,W503,W504,F401,W605 mmdata
