@@ -65,6 +65,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
+    missing_modalities = []
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print_subtitle("Loading data...")
