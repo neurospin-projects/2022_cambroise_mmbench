@@ -106,7 +106,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
 
     print_subtitle("Evaluate models...")
     results_test = {}
-    res = {"layer":[], "mean" : [], "var" : []}
+    res = {"layer": [], "mean": [], "var": []}
     for name, (_models, eval_fct, eval_kwargs, layers) in models.items():
         if not isinstance(_models[0], torch.nn.Module):
             continue
