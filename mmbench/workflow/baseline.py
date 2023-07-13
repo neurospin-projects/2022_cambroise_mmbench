@@ -48,6 +48,17 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
 
+    print_subtitle("Loading parameters...")
+    params_file = pd.read_csv(os.path.join(
+        benchdir, f"supervised-baseline_metric-BAcc_{dataset}.tsv"), sep="\t")
+    imax = params_file["mean_test_score"].idxmax()
+    parameters = {
+        "penalty": params_file["param_logistic__penalty"][imax],
+        "C": params_file["param_logistic__C"][imax],
+        "residualize": params_file["param_residualizer__scale"][imax],
+        "rois_mod": params_file["param_selector__modalities"][imax]}
+    print("parameters:", parameters)
+
     print_subtitle("Loading data...")
     modalities = ["clinical", "rois"]
     print_text(f"modalities: {modalities}")
@@ -65,8 +76,8 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
         benchdir, f"latent_meta_test_{dataset}.tsv")
     meta_train_file = os.path.join(
         benchdir, f"latent_meta_train_{dataset}.tsv")
-    meta_test_df.to_csv(meta_test_file, sep="\t", index=False)
-    meta_train_df.to_csv(meta_train_file, sep="\t", index=False)
+    meta_test_df.to_csv(meta_test_file, sep="\t", index=True)
+    meta_train_df.to_csv(meta_train_file, sep="\t", index=True)
     print_result(f"train metadata: {meta_train_file}")
     print_result(f"test metadata: {meta_test_file}")
 
@@ -80,18 +91,8 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     X_test = X_test
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
-    logreg = LogisticRegression()
-    parameters = {
-        "penalty": ["l2"],
-        "C": np.logspace(-5, 3, 9),
-        "max_iter": [100, 150],
-        "solver": ["lbfgs"]}
-    clf = GridSearchCV(logreg, parameters, cv=5, scoring="accuracy",
-                       return_train_score=True, n_jobs=-1)
-    clf.fit(X_train, y_train)
-    results_df = pd.DataFrame.from_dict(clf.cv_results_)
-    results_df = results_df.reindex(sorted(results_df.columns), axis=1)
-    print(results_df)
-    print("Tuned Hyperparameters:", clf.best_params_)
-    print("Accuracy :", clf.best_score_)
-    logreg = clf.best_estimator_
+    logreg = LogisticRegression(penalty=parameters["penalty"],C=parameters["C"])
+    logreg.fit(X_train, y_train)
+    print("Theoretical accuracy:", params_file["mean_test_score"][imax])
+    print("Accuracy obtained:", logreg.score(X_test, y_test))
+    print("Accuracy on train:", logreg.score(X_train, y_train))
