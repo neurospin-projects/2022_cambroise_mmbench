@@ -91,7 +91,8 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     X_test = X_test
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
-    logreg = LogisticRegression(penalty=parameters["penalty"],C=parameters["C"])
+    logreg = LogisticRegression(penalty=parameters["penalty"],
+                                C=parameters["C"])
     logreg.fit(X_train, y_train)
     print("Theoretical accuracy:", params_file["mean_test_score"][imax])
     print("Accuracy obtained:", logreg.score(X_test, y_test))
