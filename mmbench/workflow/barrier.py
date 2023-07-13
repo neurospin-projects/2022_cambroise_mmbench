@@ -65,6 +65,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
+    missing_modalities = []
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print_subtitle("Loading data...")
@@ -72,6 +73,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
     print_text(f"modalities: {modalities}")
     if dtype == "full":
         train_loader, test_loader = (get_train_full_data, get_test_full_data)
+        missing_modalities = [modalities[0]]
     else:
         train_loader, test_loader = (get_train_data, get_test_data)
     data_train, meta_train_df = train_loader(dataset, datasetdir, modalities)
@@ -98,6 +100,9 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         "n_channels": len(modalities),
         "n_feats": [data_test[mod].shape[1] for mod in modalities],
         "modalities": modalities}
+    for mod in missing_modalities:
+        data_test[mod] = None
+        data_train[mod] = None
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if not isinstance(checkpoints, (list, tuple)):
@@ -175,6 +180,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         results_test[name] = mat
         results_curve[name] = points_curve
 
+    print_subtitle("Save results...")
     mat_display(results_test, dataset, outdir, downstream_name, scale)
     barrier_file = os.path.join(
         benchdir, f"barrier_interp_{dataset}_{downstream_name}.npz")

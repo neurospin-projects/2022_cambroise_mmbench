@@ -59,6 +59,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
     if not os.path.isdir(benchdir):
         os.mkdir(benchdir)
     print_text(f"Benchmark directory: {benchdir}")
+    missing_modalities = []
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print_subtitle("Loading data...")
@@ -66,6 +67,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
     print_text(f"modalities: {modalities}")
     if dtype == "full":
         test_loader = get_test_full_data
+        missing_modalities = [modalities[0]]
     else:
         test_loader = get_test_data
     data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)
@@ -84,6 +86,8 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
         "n_channels": len(modalities),
         "n_feats": [data_test[mod].shape[1] for mod in modalities],
         "modalities": modalities}
+    for mod in missing_modalities:
+        data_test[mod] = None
     for name, params in parser.config.models.items():
         checkpoints = params["get_kwargs"]["checkpointfile"]
         if (not isinstance(checkpoints, (list, tuple))
@@ -102,6 +106,7 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
 
     print_subtitle("Evaluate models...")
     results_test = {}
+    res = {"layer": [], "mean": [], "var": []}
     for name, (_models, eval_fct, eval_kwargs, layers) in models.items():
         if not isinstance(_models[0], torch.nn.Module):
             continue
@@ -123,12 +128,18 @@ def benchmark_feature_similarity_exp(dataset, datasetdir, configfile, outdir,
             for i1, i2 in iu:
                 mat[i1, i2] = linear_cka(
                     _layer_data_test[i1], _layer_data_test[i2])
+            res["mean"].append(np.mean(mat, where=(mat != 0)))
+            res["var"].append(np.var(mat, where=(mat != 0)))
+            res["layer"].append(f"{name}_{layer_name}")
             mat += mat.T
             print(mat)
             scores_test[layer_name] = mat
         for layer_name in scores_test:
             results_test[f"{name}_{layer_name}"] = scores_test
-
+    res_df = pd.DataFrame(res)
+    print(res_df)
+    res_file = os.path.join(benchdir, f"result_similarity_{dataset}.tsv")
+    res_df.to_csv(res_file, sep="\t", index=False)
     similarity_file = os.path.join(benchdir, f"cka_similarity_{dataset}.npz")
     np.savez_compressed(similarity_file, **results_test)
     print_result(f"CKA similarity: {similarity_file}")
