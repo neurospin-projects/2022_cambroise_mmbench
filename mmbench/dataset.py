@@ -239,7 +239,7 @@ def get_data_legacy(dataset, datasetdir, modalities, dtype):
 
 
 def get_data(dataset, datasetdir, modalities, dtype="complete",
-             test_size=0.25, residualize=False, random_state=42):
+             test_size=0.2, residualize=False, random_state=42):
     """ Load the train/test data.
 
     Parameters
@@ -252,7 +252,7 @@ def get_data(dataset, datasetdir, modalities, dtype="complete",
         the modalities to load.
     dtype: str, default 'complete'
         the data type: 'complete', 'full'.
-    test_size: float, default=0.25
+    test_size: float, default=0.2
         should be between 0.0 and 1.0 and represent the proportion of the
         dataset to include in the test split.
     residualize: bool, default False

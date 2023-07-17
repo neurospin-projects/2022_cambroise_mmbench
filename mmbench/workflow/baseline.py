@@ -27,7 +27,7 @@ from mmbench.workflow.predict import get_predictor
 from mmbench.plotting import plot_bar
 
 
-def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
+def benchmark_baseline(datasetdir, outdir):
     """ Train and test a baseline model on euaims
 
     Parameters
@@ -36,10 +36,6 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
         the path to the euaims associated data.
     outdir: str
         the destination folder.
-    n_iter: int, default 10
-        the number of trained models using different train set partitioning.
-    random_state: int, default None
-        controls the shuffling applied to the data before applying the split.
     """
     dataset = "euaims"
     print_title(f"GET MODELS LATENT VARIABLES: {dataset}")
@@ -80,18 +76,15 @@ def benchmark_baseline(datasetdir, outdir, n_iter=10, random_state=None):
     X_test = X_test
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
-    logreg = LogisticRegression()
+    logreg = LogisticRegression(max_iter=400, solver="saga", l1_ratio=0.5)
     parameters = {
-        "penalty": ["l2"],
-        "C": np.logspace(-5, 3, 9),
-        "max_iter": [100, 150],
-        "solver": ["lbfgs"]}
-    clf = GridSearchCV(logreg, parameters, cv=5, scoring="accuracy",
+        "penalty": ["l2", "l1", "elasticnet"],
+        "C": np.logspace(-4, 1, 6)}
+    clf = GridSearchCV(logreg, parameters, cv=5, scoring="balanced_accuracy",
                        return_train_score=True, n_jobs=-1)
     clf.fit(X_train, y_train)
-    results_df = pd.DataFrame.from_dict(clf.cv_results_)
-    results_df = results_df.reindex(sorted(results_df.columns), axis=1)
-    print(results_df)
     print("Tuned Hyperparameters:", clf.best_params_)
-    print("Accuracy :", clf.best_score_)
+    print("Accuracy (CV validation):", clf.best_score_)
     logreg = clf.best_estimator_
+    score = logreg.score(X_test, y_test)
+    print("Accuracy (test):", score)
