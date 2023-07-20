@@ -26,6 +26,7 @@ from mmbench.workflow.predict import get_predictor
 from mmbench.model import get_models
 from brainboard.metric import eval_interpolation
 from mmbench.plotting import mat_display, barrier_display
+from mmbench.clustering import ts_clustering
 
 
 def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
@@ -179,6 +180,8 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         print(mat)
         results_test[name] = mat
         results_curve[name] = points_curve
+        basin_pred, n_cluster, scores = ts_clustering(points_curve, max_clusters=10, area=None)
+        print(name, ": n_clusters = ", n_cluster, basin_pred, scores)
 
     print_subtitle("Save results...")
     mat_display(results_test, dataset, outdir, downstream_name, scale)
