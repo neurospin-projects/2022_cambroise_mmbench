@@ -18,7 +18,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn import metrics
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, GridSearchCV
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result,
     print_error)
@@ -84,6 +84,10 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
 
     print_subtitle("Train model...")
     res_cv_list, sname = [], []
+    parameters = {
+        "alpha": np.logspace(-6, 1, 4),
+        "solver": ["auto", "svd", "cholesky", "lsqr", "sparse_cg",
+                   "sag", "saga", "lbfgs"]}
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
@@ -94,10 +98,16 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
             samples_test = latent_data_test[latent_key]
             for idx in tqdm(range(n_samples)):
                 clf, scorer, name = get_predictor(y_train)
+                opti = GridSearchCV(clf, parameters, cv=5, scoring=scorer,
+                                    return_train_score=True, n_jobs=-1)
+                opti.fit(samples_train[idx], y_train)
+                print("Tuned Hyperparameters:", opti.best_params_)
+                print("Accuracy (CV validation):", clf.best_score_)
+                clf = opti.best_estimator_
                 scores = cross_val_score(
                     clf, samples_train[idx], y_train, cv=5, scoring=scorer,
                     n_jobs=-1)
-                clf.fit(samples_train[idx], y_train)
+                #clf.fit(samples_train[idx], y_train)
                 res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
                 res.append(scorer(clf, samples_test[idx], y_test))
             res_cv_df = pd.DataFrame.from_dict(
