@@ -25,7 +25,7 @@ from mmbench.color_utils import (
 from mmbench.plotting import plot_bar
 
 
-def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
+def benchmark_pred_exp(dataset, datadir, outdir):
     """ Compare the learned latent space of different models using
     prediction analysis.
 
@@ -85,7 +85,7 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
     print_subtitle("Train model...")
     res_cv_list, sname = [], []
     parameters = {
-        "alpha": np.logspace(-6, 1, 4),
+        "alpha": np.logspace(-2, 4, 7),
         "solver": ["auto", "svd", "cholesky", "lsqr", "sparse_cg",
                    "sag", "saga", "lbfgs"]}
     for qname in clinical_scores:
@@ -102,20 +102,23 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
                                     return_train_score=True, n_jobs=-1)
                 opti.fit(samples_train[idx], y_train)
                 print("Tuned Hyperparameters:", opti.best_params_)
-                print("Accuracy (CV validation):", clf.best_score_)
+                print("Accuracy (CV validation):", opti.best_score_)
                 clf = opti.best_estimator_
-                scores = cross_val_score(
-                    clf, samples_train[idx], y_train, cv=5, scoring=scorer,
-                    n_jobs=-1)
+                # scores = cross_val_score(
+                #     clf, samples_train[idx], y_train, cv=5, scoring=scorer,
+                #     n_jobs=-1)
                 #clf.fit(samples_train[idx], y_train)
-                res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
+                # res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
+                if name == "MAE":
+                    scorer = metrics.make_scorer(scorer._score_func,
+                                     greater_is_better=True)
                 res.append(scorer(clf, samples_test[idx], y_test))
-            res_cv_df = pd.DataFrame.from_dict(
-                {"model": range(n_samples), "score": res_cv})
-            res_cv_df["qname"] = qname
-            res_cv_df["latent"] = latent_key
-            print(res_cv_df)
-            res_cv_list.append(res_cv_df)
+            # res_cv_df = pd.DataFrame.from_dict(
+            #     {"model": range(n_samples), "score": res_cv})
+            # res_cv_df["qname"] = qname
+            # res_cv_df["latent"] = latent_key
+            # print(res_cv_df)
+            # res_cv_list.append(res_cv_df)
             predict_results.setdefault(qname, {})[latent_key] = np.asarray(res)
         sname.append(name)
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
@@ -123,9 +126,9 @@ def benchmark_pred_exp(dataset, datasetdir, datadir, outdir):
                            axis="columns")
     predict_df.to_csv(os.path.join(outdir, "predict.tsv"), sep="\t",
                       index=False)
-    _df = pd.concat(res_cv_list)
-    _df.to_csv(os.path.join(outdir, "predict_cv.tsv"), sep="\t",
-               index=False)
+    # _df = pd.concat(res_cv_list)
+    # _df.to_csv(os.path.join(outdir, "predict_cv.tsv"), sep="\t",
+    #            index=False)
 
     print_subtitle("Display statistics...")
     ncols = 3
@@ -183,7 +186,7 @@ def get_predictor(data):
     else:
         predictor = linear_model.Ridge(alpha=.5)
         scorer = metrics.get_scorer("neg_mean_absolute_error")
-        scorer = metrics.make_scorer(scorer._score_func,
-                                     greater_is_better=True)
+        # scorer = metrics.make_scorer(scorer._score_func,
+        #                              greater_is_better=True)
         name = "MAE"
     return predictor, scorer, name
