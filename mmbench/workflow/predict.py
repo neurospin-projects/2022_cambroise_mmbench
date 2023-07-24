@@ -20,8 +20,7 @@ from sklearn import linear_model
 from sklearn import metrics
 from sklearn.model_selection import cross_val_score, GridSearchCV
 from mmbench.color_utils import (
-    print_title, print_subtitle, print_text, print_result,
-    print_error)
+    print_title, print_subtitle, print_text, print_result)
 from mmbench.plotting import plot_bar
 
 
@@ -33,8 +32,6 @@ def benchmark_pred_exp(dataset, datadir, outdir):
     ----------
     dataset: str
         the dataset name: euaims or hbn.
-    datasetdir: str
-        the path to the dataset associated data.
     datadir: str
         the path containing the embedding data.
     outdir: str
@@ -86,49 +83,49 @@ def benchmark_pred_exp(dataset, datadir, outdir):
     res_cv_list, sname = [], []
     parameters = {
         "alpha": np.logspace(-2, 4, 7),
-        "solver": ["auto", "svd", "cholesky", "lsqr", "sparse_cg",
-                   "sag", "saga", "lbfgs"]}
+        "solver": ["auto", "svd", "lsqr", "sparse_cg", "saga"]}
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
         for latent_key in latent_data_test:
             print_text(f"- {qname} - {latent_key}...")
-            res, res_cv = [], []
+            res, res_cv, best_params_list, best_score_list = [], [], [], []
             samples_train = latent_data_train[latent_key]
             samples_test = latent_data_test[latent_key]
+            clf, scorer, name = get_predictor(y_train)
+            opti = GridSearchCV(clf, parameters, cv=5, scoring=scorer,
+                                return_train_score=True, n_jobs=-1)
             for idx in tqdm(range(n_samples)):
-                clf, scorer, name = get_predictor(y_train)
-                opti = GridSearchCV(clf, parameters, cv=5, scoring=scorer,
-                                    return_train_score=True, n_jobs=-1)
                 opti.fit(samples_train[idx], y_train)
-                print("Tuned Hyperparameters:", opti.best_params_)
-                print("Accuracy (CV validation):", opti.best_score_)
+                best_params_list.append(opti.best_params_)
+                best_score_list.append(opti.best_score_)
                 clf = opti.best_estimator_
-                # scores = cross_val_score(
-                #     clf, samples_train[idx], y_train, cv=5, scoring=scorer,
-                #     n_jobs=-1)
-                #clf.fit(samples_train[idx], y_train)
-                # res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
                 if name == "MAE":
                     scorer = metrics.make_scorer(scorer._score_func,
                                      greater_is_better=True)
+                scores = cross_val_score(
+                    clf, samples_train[idx], y_train, cv=5, scoring=scorer,
+                    n_jobs=-1)
+                res_cv.append(f"{scores.mean():.2f} +/- {scores.std():.2f}")
                 res.append(scorer(clf, samples_test[idx], y_test))
-            # res_cv_df = pd.DataFrame.from_dict(
-            #     {"model": range(n_samples), "score": res_cv})
-            # res_cv_df["qname"] = qname
-            # res_cv_df["latent"] = latent_key
-            # print(res_cv_df)
-            # res_cv_list.append(res_cv_df)
+            data_df = pd.DataFrame.from_dict(
+                {"model": range(n_samples), "cv_score": res_cv,
+                 "params": best_params_list, "best_score": best_score_list})
+            data_df["qname"] = qname
+            data_df["latent"] = latent_key
+            print(data_df)
+            res_cv_list.append(data_df)
             predict_results.setdefault(qname, {})[latent_key] = np.asarray(res)
         sname.append(name)
+    print(res_cv_list)
     predict_df = pd.DataFrame.from_dict(predict_results, orient="index")
     predict_df = pd.concat([predict_df[col].explode() for col in predict_df],
                            axis="columns")
     predict_df.to_csv(os.path.join(outdir, "predict.tsv"), sep="\t",
                       index=False)
-    # _df = pd.concat(res_cv_list)
-    # _df.to_csv(os.path.join(outdir, "predict_cv.tsv"), sep="\t",
-    #            index=False)
+    _df = pd.concat(res_cv_list)
+    _df.to_csv(os.path.join(outdir, "predict_cv.tsv"), sep="\t",
+               index=False)
 
     print_subtitle("Display statistics...")
     ncols = 3
