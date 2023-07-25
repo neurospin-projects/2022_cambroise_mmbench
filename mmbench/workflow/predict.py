@@ -84,6 +84,10 @@ def benchmark_pred_exp(dataset, datadir, outdir):
     parameters = {
         "alpha": np.logspace(-2, 4, 7),
         "solver": ["auto", "svd", "lsqr", "sparse_cg", "saga"]}
+    # if dataset == "hbn":
+    #     clinical_scores = ['site', 'sex', 'SRS_Total']
+    # elif dataset == "euaims":
+    #     clinical_scores = ['site', 'sex', 'asd']
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
@@ -128,7 +132,7 @@ def benchmark_pred_exp(dataset, datadir, outdir):
                index=False)
 
     print_subtitle("Display statistics...")
-    ncols = 3
+    ncols = 2
     nrows = int(np.ceil(len(clinical_scores) / ncols))
     plt.figure(figsize=np.array((ncols, nrows)) * 4)
     pairwise_stats = []
