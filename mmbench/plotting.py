@@ -24,6 +24,7 @@ import matplotlib.colors as mcolors
 from scipy.stats import ttest_1samp
 from scipy.stats import ttest_ind as ttest
 from mmbench.color_utils import print_subtitle, print_result
+from itertools import cycle
 
 
 def plot_barrier_clusters(data, labels, scores, task_name, metric_name):
@@ -285,7 +286,7 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 
 
 def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
-                    scale, sname):
+                    scale, sname, color=None):
     """ Save barrier curves for a model.
 
     Parameters
@@ -315,7 +316,7 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
         ax = plt.subplot(nrows, ncols, idx + 1)
         plot_curve(
             coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
-            fontweight="bold", title=f"from run {idx + 1}")
+            fontweight="bold", title=f"from run {idx + 1}", color=color)
         ax.set_ylim(scale[0], scale[1])
         ax.set_ylabel(sname)
 
@@ -371,7 +372,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
 
 
 def plot_curve(xticks, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
-               fontweight="bold", title=None):
+               fontweight="bold", title=None, lcolor=None):
     """ Display a list of curve.
 
     Parameters
@@ -394,10 +395,14 @@ def plot_curve(xticks, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     title: str, default None
         the title displayed on the figure.
     """
+    c_default = cycle(plt.rcParams["axes.prop_cycle"])
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
+    if lcolor is None:
+        lcolor = list(range(mat.shape[0]))
     for idx, elem in enumerate(mat):
-        ax.plot(xticks, elem, label=f"to {idx+1}")
+        color = [c["color"] for c in c_default][lcolor[idx]]
+        ax.plot(xticks, elem, label=f"to {idx+1}", color=color)
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
