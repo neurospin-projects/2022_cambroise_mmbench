@@ -286,7 +286,7 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
 
 
 def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
-                    scale, sname, color=None):
+                    scale, sname, lcolor=None):
     """ Save barrier curves for a model.
 
     Parameters
@@ -316,7 +316,7 @@ def barrier_display(coeffs, l_metrics, model_name, downstream, dataset, outdir,
         ax = plt.subplot(nrows, ncols, idx + 1)
         plot_curve(
             coeffs, row, ax=ax, figsize=None, dpi=300, fontsize=7,
-            fontweight="bold", title=f"from run {idx + 1}", color=color)
+            fontweight="bold", title=f"from run {idx + 1}", lcolor=lcolor)
         ax.set_ylim(scale[0], scale[1])
         ax.set_ylabel(sname)
 

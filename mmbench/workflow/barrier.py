@@ -182,7 +182,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         results_curve[name] = points_curve
         basin_pred, n_cluster, scores = ts_clustering(points_curve, max_clusters=10, area=None)
         barrier_display(coeffs, points_curve, name, f"{downstream_name}_basin",
-                        dataset, benchdir, y_axes, sname, color=basin_pred)
+                        dataset, benchdir, y_axes, sname, lcolor=basin_pred)
         print(name, ": n_clusters = ", n_cluster, basin_pred, scores)
 
     print_subtitle("Save results...")
