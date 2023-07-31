@@ -65,6 +65,8 @@ def ts_clustering(X, max_clusters=10, area=None):
     if area is None:
         n_cluster = KneeLocator(n_clusters, scores, curve="convex",
                                 direction="decreasing").knee
+        if n_cluster is None:
+            n_cluster = max_clusters
     else:
         n_cluster = n_clusters[np.argmin(scores)]
     return y_pred[n_cluster - 1], n_cluster, scores

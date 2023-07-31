@@ -395,13 +395,15 @@ def plot_curve(xticks, mat, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     title: str, default None
         the title displayed on the figure.
     """
-    c_default = cycle(plt.rcParams["axes.prop_cycle"])
+    c_default = list(plt.rcParams["axes.prop_cycle"])
+    while len(c_default)<mat.shape[0]:
+        c_default.append(c_default[len(c_default) % len(c_default)])
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, dpi=dpi)
     if lcolor is None:
         lcolor = list(range(mat.shape[0]))
     for idx, elem in enumerate(mat):
-        color = [c["color"] for c in c_default][lcolor[idx]]
+        color = c_default[lcolor[idx]]['color']
         ax.plot(xticks, elem, label=f"to {idx+1}", color=color)
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
