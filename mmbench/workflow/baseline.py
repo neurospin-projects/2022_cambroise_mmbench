@@ -16,15 +16,13 @@ EUAIMS.
 import os
 import numpy as np
 import pandas as pd
-from collections import Counter
-import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LogisticRegression
+from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
 from mmbench.dataset import get_train_full_data, get_test_full_data
 from mmbench.workflow.predict import get_predictor
-from mmbench.plotting import plot_bar
 
 
 def benchmark_baseline(datasetdir, outdir):
@@ -51,8 +49,8 @@ def benchmark_baseline(datasetdir, outdir):
         dataset, datasetdir, modalities, residualize=False)
     data_test, meta_test_df = get_test_full_data(
         dataset, datasetdir, modalities, residualize=False)
-    meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
-    meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
+    #meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
+    #meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
     print_text([(key, arr.shape) for key, arr in data_test.items()])
     print_text(meta_test_df)
     print_text([(key, arr.shape) for key, arr in data_train.items()])
@@ -72,15 +70,17 @@ def benchmark_baseline(datasetdir, outdir):
     y_train, y_test = (meta_train_df.asd.values, meta_test_df.asd.values)
     y_train = y_train.astype(int)
     y_test = y_test.astype(int)
-    X_train = X_train
-    X_test = X_test
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
     logreg = LogisticRegression(max_iter=400, solver="saga", l1_ratio=0.5)
     parameters = {
         "penalty": ["l2", "l1", "elasticnet"],
         "C": np.logspace(-4, 1, 6)}
-    clf = GridSearchCV(logreg, parameters, cv=5, scoring="balanced_accuracy",
+    msss = MultilabelStratifiedShuffleSplit(
+        n_splits=5, test_size=0.2, random_state=42)
+    l_indices = msss.split(
+        list(meta_train_df.index), meta_train_df.values)
+    clf = GridSearchCV(logreg, parameters, cv=l_indices, scoring="roc_auc",
                        return_train_score=True, n_jobs=-1)
     clf.fit(X_train, y_train)
     print("Tuned Hyperparameters:", clf.best_params_)
@@ -88,3 +88,14 @@ def benchmark_baseline(datasetdir, outdir):
     logreg = clf.best_estimator_
     score = logreg.score(X_test, y_test)
     print("Accuracy (test):", score)
+
+    print_subtitle("Saving result...")
+    res = {}
+    res['std_test_score'] = clf.cv_results_['std_test_score']
+    res['mean_test_score'] = clf.cv_results_['mean_test_score']
+    res['params'] = clf.cv_results_['params']
+    res['std_test_score'] = clf.cv_results_['std_train_score']
+    res_df = pd.DataFrame.from_dict(res)
+    res_df.to_csv(os.path.join(outdir, "baseline.tsv"), sep="\t",
+                      index=False)
+    print_result(f"PREDICT: baseline.tsv")
