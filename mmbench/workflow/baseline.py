@@ -16,7 +16,9 @@ EUAIMS.
 import os
 import numpy as np
 import pandas as pd
+from sklearn import linear_model
 from sklearn.model_selection import GridSearchCV
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from mmbench.color_utils import (
@@ -25,7 +27,7 @@ from mmbench.dataset import get_train_full_data, get_test_full_data
 from mmbench.workflow.predict import get_predictor
 
 
-def benchmark_baseline(datasetdir, outdir):
+def benchmark_baseline(datasetdir, outdir, solver='roc_auc'):
     """ Train and test a baseline model on euaims
 
     Parameters
@@ -72,15 +74,21 @@ def benchmark_baseline(datasetdir, outdir):
     y_test = y_test.astype(int)
     print(f"train: {X_train.shape} - {y_train.shape}")
     print(f"test: {X_test.shape} - {y_test.shape}")
-    logreg = LogisticRegression(max_iter=400, solver="saga", l1_ratio=0.5)
+    ridge = linear_model.RidgeClassifier()
+    logreg = CalibratedClassifierCV(ridge, method='isotonic')
     parameters = {
-        "penalty": ["l2", "l1", "elasticnet"],
-        "C": np.logspace(-4, 1, 6)}
+        "estimator__alpha": np.logspace(-2, 4, 7),
+        "estimator__solver": ["auto", "lsqr", "sparse_cg", "saga"]}
+    if solver == 'BAcc':
+        logreg = LogisticRegression(max_iter=400, solver="saga", l1_ratio=0.5)
+        parameters = {
+            "penalty": ["l2", "l1", "elasticnet"],
+            "C": np.logspace(-4, 1, 6)}
     msss = MultilabelStratifiedShuffleSplit(
         n_splits=5, test_size=0.2, random_state=42)
     l_indices = msss.split(
         list(meta_train_df.index), meta_train_df.values)
-    clf = GridSearchCV(logreg, parameters, cv=l_indices, scoring="roc_auc",
+    clf = GridSearchCV(logreg, parameters, cv=l_indices, scoring="roc_auc_ovr",
                        return_train_score=True, n_jobs=-1)
     clf.fit(X_train, y_train)
     print("Tuned Hyperparameters:", clf.best_params_)
@@ -95,6 +103,7 @@ def benchmark_baseline(datasetdir, outdir):
     res['mean_test_score'] = clf.cv_results_['mean_test_score']
     res['params'] = clf.cv_results_['params']
     res['std_test_score'] = clf.cv_results_['std_train_score']
+    res['best_score'] = [score]*len(res['params'])
     res_df = pd.DataFrame.from_dict(res)
     res_df.to_csv(os.path.join(outdir, "baseline.tsv"), sep="\t",
                       index=False)
