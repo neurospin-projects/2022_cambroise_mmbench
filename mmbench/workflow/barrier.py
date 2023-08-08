@@ -17,7 +17,7 @@ import copy
 from pprint import pprint
 import numpy as np
 import torch
-import tdqm
+from tqdm import tqdm
 from mmbench.config import ConfigParser
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result)
@@ -155,7 +155,7 @@ def benchmark_barrier_exp(dataset, datasetdir, configfile, outdir,
         iu = np.array(np.triu_indices(n_models, k=0)).T
         mat = np.zeros((n_models, n_models))
         points_curve = np.zeros((n_models, n_models, n_coeffs))
-        for idx in tdqm(range(len(iu))):
+        for idx in tqdm(range(len(iu))):
             i1, i2 = iu[idx]
             model1 = _models[i1].to(device).eval()
             model2 = _models[i2].to(device).eval()
