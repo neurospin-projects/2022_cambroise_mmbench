@@ -18,7 +18,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn import metrics
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import cross_val_score
+from sklearn.calibration import CalibratedClassifierCV
 from mmbench.color_utils import (
     print_title, print_subtitle, print_text, print_result,
     print_error)
@@ -165,9 +167,13 @@ def get_predictor(data):
     is_int = ((data - data.astype(int) == 0).all()
               if not isinstance(data[0], str) else False)
     if isinstance(data[0], str) or is_int:
-        predictor = linear_model.RidgeClassifier()
-        scorer = metrics.get_scorer("balanced_accuracy")
-        name = "BAcc"
+        clf = linear_model.RidgeClassifier()
+        predictor = CalibratedClassifierCV(clf, method='isotonic')
+        scorer = metrics.get_scorer("roc_auc_ovr")
+        name = "AUC ROC"
+        # predictor = linear_model.RidgeClassifier()
+        # scorer = metrics.get_scorer("balanced_accuracy")
+        # name = "BAcc"
     else:
         predictor = linear_model.Ridge(alpha=.5)
         scorer = metrics.get_scorer("neg_mean_absolute_error")

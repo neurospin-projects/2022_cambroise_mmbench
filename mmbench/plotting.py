@@ -347,7 +347,7 @@ def mat_display(matrices, dataset, outdir, downstream_name, scale):
     scale : tuple (min, max)
         min and max values of matrix in matrices.
     """
-    ncols = 2
+    ncols = 3
     nrows = 3
     plt.figure(figsize=np.array((ncols, nrows)) * 4)
     for idx, key in enumerate(matrices):
