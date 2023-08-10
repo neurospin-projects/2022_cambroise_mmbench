@@ -88,10 +88,10 @@ def benchmark_pred_exp(dataset, datadir, outdir):
     res_cv_list, sname = [], []
     if dataset == "hbn":
         demo_scores = ['site', 'age', 'sex'] # a généraliser
-        clinical_scores = ['site', 'sex', 'SRS_Total']
+        # clinical_scores = ['site', 'sex', 'SRS_Total']
     elif dataset == "euaims":
         demo_scores = ['site', 'age', 'sex','fsiq', 'asd'] # a généraliser
-        clinical_scores = ['site', 'sex', 'asd']
+        # clinical_scores = ['site', 'sex', 'asd']
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
         y_test = meta_df[qname]
@@ -143,7 +143,7 @@ def benchmark_pred_exp(dataset, datadir, outdir):
                index=False)
 
     print_subtitle("Display statistics...")
-    ncols = 2
+    ncols = 3
     nrows = int(np.ceil(len(clinical_scores) / ncols))
     plt.figure(figsize=np.array((ncols, nrows)) * 4)
     pairwise_stats = []
