@@ -90,7 +90,7 @@ def benchmark_pred_exp(dataset, datadir, outdir):
         demo_scores = ['site', 'age', 'sex']
         # clinical_scores = ['site', 'sex', 'SRS_Total']
     elif dataset == "euaims":
-        demo_scores = ['site', 'age', 'sex','fsiq', 'asd']
+        demo_scores = ['site', 'age', 'sex', 'fsiq', 'asd']
         # clinical_scores = ['site', 'sex', 'asd']
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
@@ -105,23 +105,26 @@ def benchmark_pred_exp(dataset, datadir, outdir):
                 if name == "AUC ROC":
                     parameters = {
                         "estimator__alpha": np.logspace(-2, 4, 7),
-                        "estimator__solver": ["auto", "svd", "lsqr", "sparse_cg", "saga"]}
-                else :
+                        "estimator__solver": ["auto", "svd", "lsqr",
+                                              "sparse_cg", "saga"]}
+                else:
                     parameters = {
                         "alpha": np.logspace(-2, 4, 7),
                         "solver": ["auto", "svd", "lsqr", "sparse_cg", "saga"]}
                 l_indices = msss.split(
                     list(meta_df_tr.index), meta_df_tr[demo_scores].values)
-                opti = GridSearchCV(clf, parameters, cv=l_indices, scoring=scorer,
-                    return_train_score=True, n_jobs=-1)
+                opti = GridSearchCV(clf, parameters, cv=l_indices,
+                                    scoring=scorer, return_train_score=True,
+                                    n_jobs=-1)
                 opti.fit(samples_train[idx], y_train)
-                res_cv.append(f"{opti.cv_results_['std_test_score'][opti.best_index_]:0.4f}")
+                res_cv.append(f"{opti.cv_results_['std_test_score'][
+                    opti.best_index_]:0.4f}")
                 best_params_list.append(opti.best_params_)
                 best_score_list.append(f"{opti.best_score_:0.4f}")
                 clf = opti.best_estimator_
                 if name == "MAE":
                     scorer = metrics.make_scorer(scorer._score_func,
-                                     greater_is_better=True)
+                                                 greater_is_better=True)
                 res.append(scorer(clf, samples_test[idx], y_test))
             data_df = pd.DataFrame.from_dict(
                 {"model": range(n_samples), "best_score": best_score_list,

@@ -51,8 +51,8 @@ def benchmark_baseline(datasetdir, outdir, solver='roc_auc'):
         dataset, datasetdir, modalities, residualize=False)
     data_test, meta_test_df = get_test_full_data(
         dataset, datasetdir, modalities, residualize=False)
-    #meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
-    #meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
+    # meta_test_df["asd"] = meta_test_df["asd"].apply(lambda x: x - 1)
+    # meta_train_df["asd"] = meta_train_df["asd"].apply(lambda x: x - 1)
     print_text([(key, arr.shape) for key, arr in data_test.items()])
     print_text(meta_test_df)
     print_text([(key, arr.shape) for key, arr in data_train.items()])
@@ -103,8 +103,8 @@ def benchmark_baseline(datasetdir, outdir, solver='roc_auc'):
     res['mean_test_score'] = clf.cv_results_['mean_test_score']
     res['params'] = clf.cv_results_['params']
     res['std_test_score'] = clf.cv_results_['std_train_score']
-    res['best_score'] = [score]*len(res['params'])
+    res['best_score'] = [score] * len(res['params'])
     res_df = pd.DataFrame.from_dict(res)
     res_df.to_csv(os.path.join(outdir, "baseline.tsv"), sep="\t",
-                      index=False)
-    print_result(f"PREDICT: baseline.tsv")
+                  index=False)
+    print_result("PREDICT: baseline.tsv")

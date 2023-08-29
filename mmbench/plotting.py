@@ -219,7 +219,7 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     ylim = plt.ylim()
     plt.ylim(np.array(ylim) * (1, 1.1))
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-         rotation_mode="anchor")
+             rotation_mode="anchor")
     if title is None:
         plt.title(key, fontsize=fontsize * 1.5, pad=2, fontweight=fontweight)
     else:
