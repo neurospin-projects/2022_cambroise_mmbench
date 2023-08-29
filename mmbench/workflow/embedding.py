@@ -72,6 +72,7 @@ def benchmark_latent_exp(dataset, datasetdir, configfile, outdir,
     print_text(f"modalities: {modalities}")
     if dtype == "full":
         train_loader, test_loader = (get_train_full_data, get_test_full_data)
+        missing_modalities = [modalities[0]]
     else:
         train_loader, test_loader = (get_train_data, get_test_data)
     data_test, meta_test_df = test_loader(dataset, datasetdir, modalities)

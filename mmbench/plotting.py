@@ -212,12 +212,14 @@ def plot_bar(key, rsa, ax=None, figsize=(5, 2), dpi=300, fontsize=16,
     for axis in ["top", "bottom", "left", "right"]:
         ax.spines[axis].set_linewidth(line_width)
     xlabels = [item.get_text() for item in ax.get_xticklabels()]
-    _xlabels = ["\n".join(item.split("_")[:-1]) for item in xlabels]
+    _xlabels = [" ".join(item.split("_")[:-1]) for item in xlabels]
     ax.set_xticklabels(_xlabels, fontsize=fontsize, fontweight=fontweight)
     x_label = ax.axes.get_xaxis().get_label()
     x_label.set_visible(False)
     ylim = plt.ylim()
     plt.ylim(np.array(ylim) * (1, 1.1))
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
     if title is None:
         plt.title(key, fontsize=fontsize * 1.5, pad=2, fontweight=fontweight)
     else:
