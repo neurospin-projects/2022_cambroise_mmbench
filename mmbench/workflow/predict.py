@@ -117,8 +117,8 @@ def benchmark_pred_exp(dataset, datadir, outdir):
                                     scoring=scorer, return_train_score=True,
                                     n_jobs=-1)
                 opti.fit(samples_train[idx], y_train)
-                res_cv.append(f"{opti.cv_results_['std_test_score'][
-                    opti.best_index_]:0.4f}")
+                cv_std_score = opti.cv_results_['std_test_score']
+                res_cv.append(f"{cv_std_score[opti.best_index_]:0.4f}")
                 best_params_list.append(opti.best_params_)
                 best_score_list.append(f"{opti.best_score_:0.4f}")
                 clf = opti.best_estimator_
