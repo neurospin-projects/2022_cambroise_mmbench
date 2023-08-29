@@ -87,10 +87,10 @@ def benchmark_pred_exp(dataset, datadir, outdir):
     print_subtitle("Train model...")
     res_cv_list, sname = [], []
     if dataset == "hbn":
-        demo_scores = ['site', 'age', 'sex'] # a généraliser
+        demo_scores = ['site', 'age', 'sex']
         # clinical_scores = ['site', 'sex', 'SRS_Total']
     elif dataset == "euaims":
-        demo_scores = ['site', 'age', 'sex','fsiq', 'asd'] # a généraliser
+        demo_scores = ['site', 'age', 'sex','fsiq', 'asd']
         # clinical_scores = ['site', 'sex', 'asd']
     for qname in clinical_scores:
         y_train = meta_df_tr[qname]
